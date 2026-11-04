@@ -373,7 +373,7 @@ const titleOf=it=>it?.payload?.title||'Untitled';
 function route(){
   const p=location.pathname;
   if(p==='/'||p==='') return {v:'home'};
-  if(p==='/essays') return {v:'essays'};
+  if(p==='/insights') return {v:'essays'};
   if(p==='/manifesto') return {v:'manifesto'};
   if(p==='/join') return {v:'join'};
   if(p==='/earnings') return {v:'earnings'};
@@ -388,7 +388,7 @@ function route(){
   if(p==='/operator/discoverability') return {v:'operator-discoverability'};
   if(p.startsWith('/guides/')) return {v:'guide'};
   if(p==='/operator/sellers') return {v:'operator-sellers'};
-  if(p.startsWith('/essays/')) return {v:'essay',slug:decodeURIComponent(p.slice(8))};
+  if(p.startsWith('/insights/')) return {v:'essay',slug:decodeURIComponent(p.slice(10))};
   if(p.startsWith('/topics/')) return {v:'topic',topic:decodeURIComponent(p.slice(8))};
   if(p.startsWith('/@')) return {v:'person',name:decodeURIComponent(p.slice(2))};
   return {v:'missing'};
@@ -448,6 +448,7 @@ function chrome(inner){
       <a href="/coselling" data-nav ${on('coselling')}>Refer & earn</a>
       <a href="/seller-agreement" data-nav ${on('seller-agreement')}>Sell with us</a>
       <a href="/market" data-nav ${on('market')}>Market</a>
+      <a href="/insights" data-nav ${on('essays')||on('essay')}>Insights</a>
       ${S.session?.authenticated?`<a href="/earnings" data-nav ${on('earnings')}>Earnings</a><a href="/studio" data-nav ${on('studio')}>My account</a>`:''}
       ${!S.session?.authenticated
         ? `<a href="/join" data-nav ${on('join')}>Join</a>`
@@ -472,7 +473,7 @@ function chrome(inner){
       </div>
       <div class="foot-col">
         <h4>Read</h4>
-        <a href="/essays" data-nav>Essays</a>
+        <a href="/insights" data-nav>Insights</a>
         <a href="/manifesto" data-nav>Manifesto</a>
         <a href="/market" data-nav>Market</a>
       </div>
@@ -503,7 +504,7 @@ function emptyBlock(big,msg){
 }
 function essayRow(it){
   const s=slugOf(it), t=it.payload?.topics||[], img=it.payload?.featured_image;
-  return `<a class="essay${img?' has-img':''}" href="/essays/${encodeURIComponent(s)}" data-nav>
+  return `<a class="essay${img?' has-img':''}" href="/insights/${encodeURIComponent(s)}" data-nav>
     <div>
       <h3>${esc(titleOf(it))}</h3>
       <p>${esc(it.payload?.summary||it.payload?.headline||'')}</p>
@@ -673,7 +674,7 @@ function viewCoselling(){
   <section class="sec coseller-section"><div class="sec-head"><h2>Influence, not affiliate selling</h2></div>
     <p class="section-intro">A Coseller link records useful engagement across the whole market. You do not have to hard-sell a product, predict what someone will buy, or attach a commission intent to the page you share.</p>
     <div class="principle-grid">
-      <article><span>01</span><h3>Share anything useful</h3><p>Essays, videos, people, ideas, stores and products can all begin a chain of influence.</p></article>
+      <article><span>01</span><h3>Share anything useful</h3><p>Insights, videos, people, ideas, stores and products can all begin a chain of influence.</p></article>
       <article><span>02</span><h3>Influence can travel</h3><p>The person may later choose any eligible offer. Attribution is not limited to the page or product originally shared.</p></article>
       <article><span>03</span><h3>Value follows contribution</h3><p>When an eligible purchase settles, qualifying contributors can participate in its commission pool.</p></article>
     </div>
@@ -698,13 +699,13 @@ function viewCoselling(){
   ${cosellerActivation()}`;
 }
 
-function viewEssays(){
+function viewInsights(){
   const f=feed();
   return `<section class="sec essays-page">
-    <div class="sec-head"><h1>Essays</h1><span class="count mono">${f.length} published</span></div>
+    <div class="sec-head"><h1>Insights</h1><span class="count mono">${f.length} published</span></div>
     <p class="lede">Ideas for building useful connections.</p>
     ${f.length?`<div class="essays-list">${f.map(essayRow).join('')}</div>`
-      :emptyBlock('No essays yet','The first perspectives are being written.')}
+      :emptyBlock('No insights yet','The first perspectives are being written.')}
   </section>
   ${contributorInvite()}`;
 }
@@ -719,13 +720,13 @@ function viewManifesto(){
       : ''}
     <div class="body">${m?(m.payload?.body||`<p>${esc(m.payload?.summary||'')}</p>`)
       :`<p>The manifesto has not been published yet. This page renders it from the feed the moment an editor approves it — the statement above is the seed, the essay is the argument.</p>
-        <p class="mono" style="color:var(--dim)">Awaiting /essays/manifesto</p>`}</div>
+        <p class="mono" style="color:var(--dim)">Awaiting /insights/manifesto</p>`}</div>
     ${footCTA()}
   </article>`;
 }
 function viewEssay(slug){
   const it=findPost(slug);
-  if(!it) return `<div class="reader">${emptyBlock('Not found','No essay lives at this address yet.')}
+  if(!it) return `<div class="reader">${emptyBlock('Not found','No insight lives at this address yet.')}
     <p style="text-align:center;margin-top:26px"><a class="btn" href="/" data-nav>Back</a></p></div>`;
   const t=it.payload?.topics||[];
   return `<article class="reader">
@@ -747,8 +748,8 @@ function viewTopic(topic){
   const c=caps().filter(x=>(x.metadata?.topics||[]).includes(topic));
   return `<section class="sec" style="margin-top:44px">
     <div class="sec-head"><h2>${esc(topic)}</h2>
-      <span class="count mono">${f.length} essays · ${c.length} listed</span></div>
-    ${f.length?f.map(essayRow).join(''):emptyBlock('Nothing here yet','No essay carries this topic — the vocabulary exists before the writing does.')}
+      <span class="count mono">${f.length} insights · ${c.length} listed</span></div>
+    ${f.length?f.map(essayRow).join(''):emptyBlock('Nothing here yet','No insight carries this topic — the vocabulary exists before the writing does.')}
     ${c.length?`<div class="goods">${c.map(goodCard).join('')}</div>`:''}
   </section>`;
 }
@@ -758,9 +759,9 @@ function viewPerson(name){
   return `<section class="sec" style="margin-top:44px">
     <div class="sec-head"><h2>@${esc(name)}</h2></div>
     <p style="color:var(--dim);max-width:52ch;margin-top:18px">A member of Referron Market. Discover their published content and offerings.</p>
-    ${written.length?`<h3 class="mono" style="margin-top:36px;color:var(--dim)">Essays</h3>${written.map(essayRow).join('')}`:''}
+    ${written.length?`<h3 class="mono" style="margin-top:36px;color:var(--dim)">Insights</h3>${written.map(essayRow).join('')}`:''}
     ${selling.length?`<h3 class="mono" style="margin-top:36px;color:var(--dim)">Listings</h3><div class="goods">${selling.map(goodCard).join('')}</div>`:''}
-    ${(!written.length&&!selling.length)?emptyBlock('Nothing yet','No essays, no listings — for now.'):''}
+    ${(!written.length&&!selling.length)?emptyBlock('Nothing yet','No insights, no listings — for now.'):''}
   </section>`;
 }
 /* Marketplace policies adapted for the Referron application. */
@@ -1098,7 +1099,7 @@ function render(){
   if(S.loading) inner=`<div class="hero"><h1 class="display skel">&nbsp;</h1></div>`;
   else if(S.error&&!S.state&&r.v!=='seller-agreement') inner=`<section class="sec" style="margin-top:44px">${emptyBlock('Unavailable',"Couldn't reach game state: "+S.error)}</section>`;
   else if(r.v==='home') inner=viewHome();
-  else if(r.v==='essays') inner=viewEssays();
+  else if(r.v==='essays') inner=viewInsights();
   else if(r.v==='manifesto') inner=viewManifesto();
   else if(r.v==='privacy') inner=viewPrivacy();
   else if(r.v==='terms') inner=viewTerms();

@@ -41,7 +41,7 @@
 (deftest essays-list-is-a-cold-loadable-page
   (with-redefs [http/get (fn [& _] {:status 200 :body {:success true :state sample-state}})]
     (is (= 200 (:status (handlers/app {:request-method :get
-                                    :uri "/essays"
+                                    :uri "/insights"
                                     :headers {}}))))))
 
 (deftest agent-guide-is-public-plain-text

@@ -15,6 +15,7 @@ jobs:
         with:
           lein: 2.11.2
       - run: lein test
+      - run: python3 tests/refresh_catalog_test.py
   browser:
     runs-on: ubuntu-latest
     steps:

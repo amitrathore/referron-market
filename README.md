@@ -2,8 +2,14 @@
 
 A standalone marketplace for products, services, and trusted recommendations.
 Built on existing Intergraph protocols with Referron's official branding.
-The application starts with no sellers or inventory. Yvatar and Daemons are
-subsequent seller-onboarding work.
+The public marketplace includes Yvatar Store and a reviewed snapshot of its real
+credit products. It is browse-only: no seller seat, live inventory, payments or
+fulfillment is activated. Daemons and live seller onboarding remain later work.
+
+Insights at `/insights` uses the existing Attention Protocol editorial workflow,
+including contributor drafts and strategist approval. Only approved Referron
+content appears; no articles are imported from another game. Legacy `/essays`
+URLs redirect permanently and preserve referral parameters.
 
 ## Architecture
 
@@ -80,7 +86,7 @@ npm run test:ui
 lein uberjar
 ```
 
-The guest preview uses empty state and cannot sign in or accept payments.
+The guest preview includes the reviewed Yvatar snapshot and cannot sign in or accept payments.
 `REFERRON_PREVIEW_STATE=/absolute/path/to/fixture.json npm run preview` loads an
 explicit local public-state fixture. It never reads production inventory.
 The browser suite starts both the guest preview and an isolated Clojure discovery
@@ -185,7 +191,8 @@ game merely to work around a restart issue.
 
 Production and local default to `MARKET_PAYMENT_PROVIDER=stub`,
 `STRIPE_CONNECT_ENABLED=false`, and `SHOPTYPE_ENABLED=false`. Checkout presents
-an unavailable state. No real seller or product is published by bootstrap.
+an unavailable state. Bootstrap does not create real seller seats or durable inventory. The public read
+model adds the browse-only Yvatar snapshot without inserting it into protocol state.
 
 Later activation requires the game's merchant onboarding, seller agreement and
 commercial acceptance, activated seller seat, provider configuration, signed
@@ -205,3 +212,34 @@ The copied seller terms and commercial workflow are application drafts.
 Confirm the legal operator and accepted commercial terms before activating
 real sellers. No identity/contact integration with the existing Referron app
 is included.
+
+## Reviewed Yvatar catalog
+
+`resources/catalog/yvatar.json` contains only public product fields and source
+provenance. Its initial nine products were derived from the clean Yvatar source
+checkout at revision `f994b8b41e624412081de18ce44850c237662141`, using
+`yvatar.services.stripe/purchase-options`, `option-label`, and
+`yvatar.db.marketplace/catalog`. The catalog source remains read-only.
+
+Refresh from the official catalog API (supply `YVATAR_CATALOG_TOKEN` through your
+shell when access is required; this command never sources `.envrc`):
+
+```sh
+python3 scripts/refresh-yvatar-catalog.py
+# Or validate an owner-provided catalog response:
+python3 scripts/refresh-yvatar-catalog.py --input /path/to/catalog.json --source https://yvatar.com/seller-commerce/v1/catalog
+```
+
+Review the resulting diff before publishing. The command validates the entire
+catalog and replaces the snapshot atomically; a failed refresh retains the prior
+version. Private provider fields and credentials are never copied. Refreshes do
+not run on startup or during browser requests. Preview IDs use the reserved
+`referron-preview-yvatar-` prefix and cannot be added to carts via HTTP or protocol
+events. Durable Yvatar listings supersede the preview as a whole, and seller-owned
+profiles take precedence. The API and server-rendered discovery use the same
+public projection.
+
+The default guest preview includes this catalog. To exercise an empty marketplace,
+use `REFERRON_PREVIEW_STATE=tests/fixtures/empty-market.json npm run preview`.
+Production verification scripts expect Insights and the browse-only Yvatar store.
+Deployment remains an explicit, separate operation.

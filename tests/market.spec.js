@@ -305,6 +305,7 @@ test("seller-first directory, nine Yvatar products, direct product links and mob
   await setup(page);
   await page.goto("/market");
   await expect(page.locator(".store-card")).toHaveCount(2);
+  await expect(page.locator(".store-card").first()).toContainText("Yvatar");
   await expect(
     page.locator(".store-card").filter({ hasText: "Yvatar" }),
   ).toContainText("9 products");
@@ -520,7 +521,7 @@ test("player can become a Contributor from the content feed", async ({ page }) =
   await setup(page);
   await page.goto("/studio");
   await expect(page.getByRole("button", { name: "Become a Contributor" })).toBeVisible();
-  await page.goto("/essays");
+  await page.goto("/insights");
   const claim = page.waitForRequest((request) => request.url().endsWith("/join/claim"));
   await page.getByRole("button", { name: "Become a Contributor" }).click();
   expect((await claim).postDataJSON()).toMatchObject({
@@ -554,7 +555,7 @@ test("Studio issues and copies a token for the selected seat", async ({ page }) 
   await expect(page.locator("#seat-token-value")).toHaveValue("seat-token-yvatar");
   await page.setViewportSize({ width: 320, height: 700 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole("link", { name: "Essays" }).first().click();
+  await page.getByRole("link", { name: "Insights" }).first().click();
   await page.goto("/studio");
   await expect(page.locator("#seat-token-value")).toHaveCount(0);
 });
@@ -578,16 +579,16 @@ test("Studio removes an expired seat token", async ({ page }) => {
   await expect(page.locator("#seat-token-value")).toBeVisible();
   await expect(page.locator("#seat-token-value")).toHaveCount(0, { timeout: 4000 });
 });
-test("home presents the market and content remains available in Essays",async({page})=>{
+test("home presents the market and content remains available in Insights",async({page})=>{
  const essays=Array.from({length:5},(_,i)=>({id:'essay'+i,slug:'essay'+i,payload:{title:'Perspective '+i}}));
  await setup(page,{essays});await page.goto('/');await expect(page.locator('.store-card')).toHaveCount(2);
- await page.goto('/essays');await expect(page.locator('.essay')).toHaveCount(5);
+ await page.goto('/insights');await expect(page.locator('.essay')).toHaveCount(5);
 });
 
-test("Essays has an empty state before publication", async ({ page }) => {
+test("Insights has an empty state before publication", async ({ page }) => {
   await setup(page, { signed: false });
-  await page.goto("/essays");
-  await expect(page.getByText("No essays yet")).toBeVisible();
+  await page.goto("/insights");
+  await expect(page.getByText("No insights yet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Join to contribute" })).toBeVisible();
 });
 test("product button directs a signed-in buyer without a handle to join", async ({ page }) => {
@@ -789,7 +790,7 @@ test('mobile navigation, reading and long product names fit both themes', async 
   });
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    for (const route of ['/', '/essays/reading', '/market/yvatar/products/sku0', '/market/cart']) {
+    for (const route of ['/', '/insights/reading', '/market/yvatar/products/sku0', '/market/cart']) {
       await page.goto(route);
       await expect(page.locator('header')).toBeVisible();
       const toggle = page.locator('.theme-toggle');
@@ -829,14 +830,14 @@ for (const scenario of [
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     await setup(page, { ...scenario.options, essays: [{ id: 'reading', slug: 'reading', author: 'builder',
       payload: { title: 'An essay worth sharing', body: '<p>Ideas worth keeping.</p>' } }] });
-    await page.goto('/essays/reading?ref=someone-else');
+    await page.goto('/insights/reading?ref=someone-else');
     const actions = page.locator('article.reader > .foot-cta');
     await expect(actions).toBeVisible();
     if (scenario.action) await expect(actions.getByRole('link', { name: scenario.action, exact: true })).toHaveAttribute('href', scenario.destination);
     if (scenario.options.signed !== false) await expect(actions.getByRole('link', { name: 'Join Referron Market', exact: true })).toHaveCount(0);
     const copy = actions.getByRole('button', { name: scenario.earning ? 'Copy your earning link' : 'Copy essay link', exact: true });
     await copy.click();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('https://referron.test/essays/reading' + (scenario.earning ? '?ref=ref-buyer' : ''));
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('https://referron.test/insights/reading' + (scenario.earning ? '?ref=ref-buyer' : ''));
     if (scenario.earning) {
       await expect(actions.getByText('Includes your sharing attribution')).toBeVisible();
       await expect(actions.getByRole('link')).toHaveCount(0);
@@ -872,7 +873,7 @@ test('coselling steps keep text beside their numbers without vertical stacking',
 async function sharingEssay(page, options = {}) {
   await page.context().grantPermissions(['clipboard-read','clipboard-write']);
   await setup(page, { coseller: true, ...options, essays: [{id:'share-test',slug:'share-test',author:'builder',payload:{title:'A useful perspective',body:'<p>Ideas worth sharing.</p>'}}] });
-  await page.goto('/essays/share-test?ref=someone-else&token=not-a-real-secret#section');
+  await page.goto('/insights/share-test?ref=someone-else&token=not-a-real-secret#section');
   await expect(page.getByRole('heading',{name:'A useful perspective',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Share-to-Earn',exact:true}).click();
   return page.getByRole('dialog',{name:'Share-to-Earn'});
@@ -880,10 +881,10 @@ async function sharingEssay(page, options = {}) {
 test('share panel prepares the current essay link and restores keyboard focus',async({page})=>{
   const panel=await sharingEssay(page);
   await expect(panel.getByText('A useful perspective',{exact:true})).toBeVisible();
-  await expect(panel.getByLabel('Your personal link')).toHaveValue('https://referron.test/essays/share-test?ref=ref-buyer');
+  await expect(panel.getByLabel('Your personal link')).toHaveValue('https://referron.test/insights/share-test?ref=ref-buyer');
   await panel.getByRole('button',{name:'Copy link',exact:true}).click();
   await expect(panel.getByRole('status')).toHaveText('Personal link copied.');
-  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('https://referron.test/essays/share-test?ref=ref-buyer');
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe('https://referron.test/insights/share-test?ref=ref-buyer');
   await page.keyboard.press('Escape');
   await expect(panel).not.toBeVisible();
   await expect(page.getByRole('button',{name:'Share-to-Earn',exact:true})).toBeFocused();
@@ -894,8 +895,8 @@ test('inactive coseller explicitly activates inside the panel without leaving th
   await expect(panel.getByRole('button',{name:'Activate Share-to-Earn'})).toBeVisible();
   await expect(panel.getByLabel('Your personal link')).toHaveCount(0);
   await panel.getByRole('button',{name:'Activate Share-to-Earn'}).click();
-  await expect(panel.getByLabel('Your personal link')).toHaveValue('https://referron.test/essays/share-test?ref=ref-buyer');
-  await expect(page).toHaveURL(/\/essays\/share-test/);
+  await expect(panel.getByLabel('Your personal link')).toHaveValue('https://referron.test/insights/share-test?ref=ref-buyer');
+  await expect(page).toHaveURL(/\/insights\/share-test/);
 });
 test('signed-out share panel preserves a safe return target without showing an earning link',async({page})=>{
   const panel=await sharingEssay(page,{signed:false});
@@ -912,7 +913,7 @@ for(const scenario of [{seated:false,label:'Choose your handle'},{multiSeats:tru
     await expect(page).toHaveURL('https://referron.test/join');
     if(scenario.multiSeats) await page.getByRole('button',{name:'@yvatar',exact:true}).click();
     else {await page.locator('#handle').fill('buyer');await page.getByRole('button',{name:/Claim/}).click();}
-    await expect(page).toHaveURL('https://referron.test/essays/share-test');
+    await expect(page).toHaveURL('https://referron.test/insights/share-test');
     await expect(panel.getByRole('button',{name:'Activate Share-to-Earn'})).toBeVisible();
     await expect(panel.getByLabel('Your personal link')).toHaveCount(0);
   });
@@ -944,7 +945,7 @@ test('share panel supports native sharing, cancellation, and manual copy fallbac
   await page.addInitScript(()=>{window.nativeShareCalls=[];navigator.share=async data=>{window.nativeShareCalls.push(data);throw new DOMException('Cancelled','AbortError');};});
   const panel=await sharingEssay(page);
   await panel.getByRole('button',{name:'Share',exact:true}).click();
-  expect(await page.evaluate(()=>window.nativeShareCalls)).toEqual([{title:'A useful perspective',url:'https://referron.test/essays/share-test?ref=ref-buyer'}]);
+  expect(await page.evaluate(()=>window.nativeShareCalls)).toEqual([{title:'A useful perspective',url:'https://referron.test/insights/share-test?ref=ref-buyer'}]);
   await expect(panel.getByRole('status')).toHaveText('');
   await page.evaluate(()=>{navigator.clipboard.writeText=async()=>{throw new Error('Unavailable');};});
   await panel.getByRole('button',{name:'Copy link',exact:true}).click();
@@ -957,7 +958,7 @@ test('sign-in return reopens the original page and still requires explicit activ
   await page.addInitScript(()=>sessionStorage.setItem('referron.share-intent.v1',JSON.stringify({path:'/essays/share-test?ref=other',title:'A useful perspective',fallback:false})));
   await setup(page,{essays:[{id:'share-test',slug:'share-test',payload:{title:'A useful perspective',body:'<p>Read this.</p>'}}]});
   await page.goto('/');
-  await expect(page).toHaveURL('https://referron.test/essays/share-test');
+  await expect(page).toHaveURL('https://referron.test/insights/share-test');
   await expect(page.getByRole('dialog',{name:'Share-to-Earn'}).getByRole('button',{name:'Activate Share-to-Earn'})).toBeVisible();
 });
 test('activation failure offers recovery without presenting an earning link',async({page})=>{

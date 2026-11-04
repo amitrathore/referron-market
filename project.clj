@@ -1,4 +1,4 @@
-(defproject referron-market "0.1.0-SNAPSHOT"
+(defproject referron-market "0.1.1-SNAPSHOT"
   :description "Referron Market — a marketplace built on trusted connections"
   :license {:name "MIT"
             :url "https://opensource.org/licenses/MIT"}

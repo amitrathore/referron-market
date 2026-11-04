@@ -10,6 +10,9 @@ at the owner's request. Source URLs are recorded in DESIGN.md. The logo is not
 redrawn or recolored. Neutral sun/moon icons retain the included Lucide license
 under resources/ui/assets/brand/LUCIDE-LICENSE.
 
-No content, inventory, credentials, or seller agreements accepted in another
-game are migrated into Referron. Test seller names and commercial records exist
-only in isolated regression fixtures.
+Yvatar’s official credit product artwork is copied unchanged from the Yvatar source.
+Yvatar’s official storefront logo is reused from Agents of Mind at the owner’s
+request. The reviewed catalog snapshot derives public product facts from Yvatar’s
+authoritative source; its revision and retrieval time are recorded with the snapshot.
+No articles, credentials, seller memberships, or accepted commercial agreements
+are migrated from another game. Preview products do not represent activated inventory.

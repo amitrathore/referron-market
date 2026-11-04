@@ -6,13 +6,17 @@ const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '../resources/ui');
 const types = {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
 async function start() {
+  const snapshot=JSON.parse(await fs.readFile(path.join(__dirname,'../resources/catalog/yvatar.json'),'utf8'));
   const state = process.env.REFERRON_PREVIEW_STATE
     ? JSON.parse(await fs.readFile(process.env.REFERRON_PREVIEW_STATE,'utf8'))
-    : {gameState:{market:{capabilities:{}},attention:{feed:[]},storefront:{profiles:{}}},topics:[]};
+    : {gameState:{market:{capabilities:snapshot.capabilities},attention:{feed:[]},storefront:{profiles:{yvatar:snapshot.profile}}},topics:[]};
   http.createServer(async(req,res)=>{
     const json=(value,status=200)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
     try {
       const url=new URL(req.url,'http://localhost');
+      if(url.pathname==='/essays'||url.pathname.startsWith('/essays/')) {
+        res.writeHead(301,{'Location':url.pathname.replace(/^\/essays/,'/insights')+url.search});res.end();return;
+      }
       if(req.method!=='GET') return json({error:{code:'preview-read-only'}},405);
       if(url.pathname==='/ui/public-state') return json(state);
       if(url.pathname==='/health') return json({ok:true,preview:true});

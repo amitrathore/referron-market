@@ -50,7 +50,7 @@ test('coming-soon sellers are stamped in the directory and storefronts',async({p
     await page.goto('/market/'+id);
     await expect(page.getByRole('heading',{name,exact:true})).toBeVisible();
     await expect(page.locator('.storefront-header .coming-soon-stamp')).toHaveText('Coming soon!');
-    await expect(page.getByText('This seller is not active on Referron Market yet. Check back for the launch.')).toBeVisible();
+    await expect(page.getByText('Purchasing on Referron Market is coming soon.')).toBeVisible();
     if(website) {
       await expect(page.getByRole('link',{name:'Visit website ↗'})).toHaveAttribute('href',website);
       await expect(page.getByRole('link',{name:'Browse products'})).toHaveCount(0);

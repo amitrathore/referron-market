@@ -35,6 +35,7 @@
             [referron-market.seller-connect :as shoptype-connect]
             [game.protocols.withdrawal :as withdrawal]
             [referron-market.spec :as spec]
+            [referron-market.catalog :as catalog]
             [referron-market.marketplace :as marketplace]
             [referron-market.wallet :as wallet]
             [referron-market.seller-agreement :as seller-agreement]
@@ -196,7 +197,9 @@
                     (assoc payload :discoverability/context
                            (discovery/context (overlay-state (:initial-state spec/game-spec) (:game-state payload))))
                     payload)
-          result (gm-dispatch/dispatch-gm-handler payload merged-manifest)]
+          result (if (catalog/preview-event? payload)
+                   catalog/preview-error
+                   (gm-dispatch/dispatch-gm-handler payload merged-manifest))]
       (if (:success result)
         (log! "INFO" "Event handled"
               {:event/type event-type
@@ -279,18 +282,19 @@
    referral policy, signups, touches, drafts, orders and audit trails. The site
    only needs published editorial content and catalog capabilities."
   [effective]
-  {:storefront {:profiles (storefront/public-profiles effective)}
-   :attention (select-keys (:attention effective) [:brand-bible :feed])
-   :market {:capabilities (into {}
-                               (map (fn [[id capability]]
-                                      [id (select-keys capability
-                                                       [:id :seller :title :description :kind
-                                                        :external-ref :terms :commerce
-                                                        :entitlements :category-ids
-                                                        :hashtag-ids :images :checkout
-                                                        :status :display-order
-                                                        :created-at :updated-at])]))
-                               (get-in effective [:market :capabilities] {}))}})
+  (let [effective (catalog/with-preview effective)]
+    {:storefront {:profiles (storefront/public-profiles effective)}
+     :attention (select-keys (:attention effective) [:brand-bible :feed])
+     :market {:capabilities (into {}
+                                 (map (fn [[id capability]]
+                                        [id (select-keys capability
+                                                         [:id :seller :title :description :kind
+                                                          :external-ref :terms :commerce
+                                                          :entitlements :category-ids
+                                                          :hashtag-ids :images :checkout
+                                                          :status :display-order
+                                                          :created-at :updated-at])]))
+                                 (get-in effective [:market :capabilities] {}))}}))
 
 (defn- public-state
   [request game-id game-name]
@@ -525,7 +529,7 @@
    Falls back to the plain static file on ANY failure: state unavailable, item
    not found, or an exception. An unfurl is never worth a 502 on the article."
   ([request slug]
-   (essay-response request slug (str "/essays/" slug)))
+   (essay-response request slug (str "/insights/" slug)))
   ([request slug public-path]
    (or (try
          (when-let [tpl (some-> (io/resource "ui/index.html") slurp)]
@@ -866,6 +870,8 @@
   (POST "/events" [:as request]
     (let [{:keys [context seat response]} (gm-identity/require-selected-seat request (identity-opts))]
       (or response
+          (when (catalog/preview-event? (:body request))
+            {:status 409 :body (dissoc catalog/preview-error :status)})
           (if (gm-v2/enabled?)
             ;; Runtime v2: the seat is already verified with MoM above, so the event runs
             ;; locally as that seat (caller protections included), not through MoM.
@@ -909,6 +915,11 @@
   (route/resources "/assets" {:root "ui/assets"})
 
   ;; --- The site ---
+  (GET "/essays" [:as request]
+    {:status 301 :headers {"Location" (str "/insights" (when-let [q (:query-string request)] (str "?" q)))} :body ""})
+  (GET "/essays/:slug" [:as request]
+    {:status 301 :headers {"Location" (str (str/replace-first (:uri request) #"^/essays/" "/insights/")
+                                         (when-let [q (:query-string request)] (str "?" q)))} :body ""})
   (GET "/*" [:as request]
     (when (str/ends-with? (:uri request) ".md") (discovery-response request (:uri request) true)))
 
@@ -924,7 +935,7 @@
   (GET "/market/cart" [] (private-page "index.html"))
   (GET "/market/orders" [] (private-page "index.html"))
   (GET "/" [:as request] (discovery-response request "/" false))
-  (GET "/essays" [:as request] (discovery-response request "/essays" false))
+  (GET "/insights" [:as request] (discovery-response request "/insights" false))
   (GET "/manifesto" [:as request] (discovery-response request "/manifesto" false))
   (GET "/coselling" [:as request] (discovery-response request "/coselling" false))
   (GET "/seller-agreement" [:as request] (discovery-response request "/seller-agreement" false))
@@ -933,7 +944,7 @@
   (GET "/market/:seller" [:as request] (discovery-response request (:uri request) false))
   (GET "/privacy" [:as request] (discovery-response request "/privacy" false))
   (GET "/terms" [:as request] (discovery-response request "/terms" false))
-  (GET "/essays/:slug" [:as request] (discovery-response request (:uri request) false))
+  (GET "/insights/:slug" [:as request] (discovery-response request (:uri request) false))
   (GET "/guides/:guide" [:as request] (discovery-response request (:uri request) false))
   (GET "/topics/:topic" [] (private-page "index.html"))
   (GET "/@:player-name" [] (private-page "index.html"))
