@@ -44,7 +44,8 @@ application adaptations, not claimed as an official Referron dark palette.
 Use a clear shopping hierarchy, generous whitespace, rounded controls and
 restrained blue accents. The home page's connection diagram illustrates
 Discover → Refer → Grow; it represents a process, not live network activity.
-Products and seller profiles use actual protocol state. Empty markets invite
+Products and seller profiles use actual protocol state, with an explicit browse-only
+exception for the reviewed Yvatar catalog snapshot and official seller assets. Empty markets invite
 seller participation without fabricated inventory, ratings, or earnings.
 
 Maintain keyboard focus, 44px interaction targets, legible contrast, and

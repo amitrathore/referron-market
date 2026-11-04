@@ -26,14 +26,14 @@
     (is (not (re-find #"secret draft|secret order|secret agreement|secret network" (pr-str s))))
     (is (nil? (get-in (d/structured-data p r) ["@graph" 2 "offers"])))
     (is (re-find #"Coming soon" (:html r)))
-    (is (= "2026" (subs (:published-at (d/resource context "/essays/useful")) 0 4)))
+    (is (= "2026" (subs (:published-at (d/resource context "/insights/useful")) 0 4)))
     (is (seq (:html (d/resource context "/privacy"))))
     (is (re-find #"Referron" (:html (d/resource context "/terms"))))))
 
 (deftest public-http-renders-content-and-discovery-before-javascript
   (with-redefs [http/get (fn [& _] {:status 200 :body {:success true :state sample}})]
-    (doseq [path ["/" "/essays" "/market" "/coselling" "/seller-agreement" "/privacy" "/terms"
-                  "/essays/useful" "/market/seller" "/market/seller/products/one" "/guides/agents"]]
+    (doseq [path ["/" "/insights" "/market" "/coselling" "/seller-agreement" "/privacy" "/terms"
+                  "/insights/useful" "/market/seller" "/market/seller/products/one" "/guides/agents"]]
       (let [r (h/app {:request-method :get :uri path :headers {}})
             doc (Jsoup/parse (:body r))]
         (is (= 200 (:status r)) path)
@@ -43,19 +43,19 @@
         (is (seq (.text (.select doc "title"))) path)
         (let [data (.html (.first (.select doc "script[type=application/ld+json]")))]
           (is (map? (json/parse-string data)) path))))
-    (let [r (h/app {:request-method :get :uri "/essays/e1" :query-string "ref=ref-a" :headers {}})]
+    (let [r (h/app {:request-method :get :uri "/insights/e1" :query-string "ref=ref-a" :headers {}})]
       (is (= 200 (:status r)))
-      (is (re-find #"rel=\"canonical\" href=\"https://referron.coselling.ai/essays/useful\"" (:body r)))
+      (is (re-find #"rel=\"canonical\" href=\"https://referron.coselling.ai/insights/useful\"" (:body r)))
       (is (not (re-find #"bad\(\)|secret draft|secret order|secret agreement|secret network" (:body r)))))
-    (doseq [path ["/llms.txt" "/sitemap.xml" "/robots.txt" "/guides/agents.md" "/essays/useful.md"]]
+    (doseq [path ["/llms.txt" "/sitemap.xml" "/robots.txt" "/guides/agents.md" "/insights/useful.md"]]
       (is (= 200 (:status (h/app {:request-method :get :uri path :headers {}}))) path))
-    (doseq [path ["/essays/missing" "/market/missing" "/market/seller/products/missing" "/guides/missing.md"]]
+    (doseq [path ["/insights/missing" "/market/missing" "/market/seller/products/missing" "/guides/missing.md"]]
       (is (= 404 (:status (h/app {:request-method :get :uri path :headers {}}))) path))
     (is (= "noindex, nofollow" (get-in (h/app {:request-method :get :uri "/studio" :headers {}}) [:headers "X-Robots-Tag"])))))
 
 (deftest missing-state-does-not-serve-stale-content
   (with-redefs [http/get (fn [& _] {:status 503 :body {:error "offline"}})]
-    (doseq [path ["/llms.txt" "/sitemap.xml" "/essays/useful" "/market/seller/products/one"]]
+    (doseq [path ["/llms.txt" "/sitemap.xml" "/insights/useful" "/market/seller/products/one"]]
       (is (= 503 (:status (h/app {:request-method :get :uri path :headers {}}))) path))))
 
 (deftest registration-sync-forwards-human-authority-and-preserves-protection
@@ -127,6 +127,6 @@
       (is (= "summary_large_image" (.attr (.first (.select doc "meta[name=twitter:card]")) "content")))
       (is (re-find #"Make trusted recommendations" (.attr (.first (.select doc "meta[name=description]")) "content")))))
   (let [profile {:origin "https://referron.coselling.ai" :name "Referron Market" :image "/assets/brand/social-card-v2.png"}
-        metadata (a/social-metadata profile {:path "/essays/custom" :type "article" :title "Custom" :description "A specific article" :image "https://images.example.com/cover.jpg"})]
+        metadata (a/social-metadata profile {:path "/insights/custom" :type "article" :title "Custom" :description "A specific article" :image "https://images.example.com/cover.jpg"})]
     (is (re-find #"https://images.example.com/cover.jpg" metadata))
     (is (not (re-find #"og:image:width" metadata)))))

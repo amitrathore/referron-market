@@ -5,16 +5,16 @@ test.describe('Discoverability browser-to-protocol flow',()=>{
   test('public content is readable without JavaScript',async({browser})=>{
     const context=await browser.newContext({javaScriptEnabled:false});
     const page=await context.newPage();
-    await page.goto(origin+'/essays/useful?ref=example');
+    await page.goto(origin+'/insights/useful?ref=example');
     await expect(page.getByRole('heading',{name:'Useful tools',exact:true})).toBeVisible();
     await expect(page.getByText('Real public content.')).toBeVisible();
     await expect(page.locator('main')).toHaveCount(1);
-    await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href','https://referron.coselling.ai/essays/useful');
+    await expect(page.locator('link[rel=canonical]')).toHaveAttribute('href','https://referron.coselling.ai/insights/useful');
     await expect(page).toHaveTitle(/Useful tools/);
     await context.close();
   });
   test('interactive rendering replaces initial content once',async({page})=>{
-    await page.goto(origin+'/essays/useful');
+    await page.goto(origin+'/insights/useful');
     await expect(page.locator('#app')).not.toHaveAttribute('data-server-rendered','true');
     await expect(page.getByRole('heading',{name:'Useful tools',exact:true})).toHaveCount(1);
     await expect(page.getByText('Real public content.')).toHaveCount(1);

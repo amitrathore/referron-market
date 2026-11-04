@@ -4,4 +4,4 @@ Discover products and services, share useful recommendations, and grow through t
 
 Browse the [market](/market), [become a seller](/seller-agreement), or learn how to [refer and earn](/coselling).
 
-Our first storefronts are on their way. Referron Market opens with an empty catalog. Rewards depend on eligible purchases and the active commercial terms; sharing alone does not guarantee earnings.
+Yvatar Store is our first browsable storefront, with a reviewed catalog of creative credits. Purchasing on Referron Market is coming soon. Read Referron perspectives in [Insights](/insights). Rewards depend on eligible purchases and the active commercial terms; sharing alone does not guarantee earnings.

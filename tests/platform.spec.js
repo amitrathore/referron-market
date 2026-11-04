@@ -1,10 +1,10 @@
 const {test,expect}=require('@playwright/test');
 const path=require('node:path');
-test('empty platform uses official branding and exposes no seeded sellers',async({page})=>{
+test('platform uses official branding and a browse-only Yvatar store',async({page})=>{
   await page.goto('http://127.0.0.1:4173/');
   await expect(page.getByRole('heading',{name:'Good things grow through people.'})).toBeVisible();
-  await expect(page.getByText('The first storefronts are on their way')).toBeVisible();
-  await expect(page.locator('.store-card')).toHaveCount(0);
+  await expect(page.locator('.store-card').first()).toContainText('Yvatar Store');
+  await expect(page.locator('.store-card')).toHaveCount(1);
   await expect(page.locator('header .brand-mark')).toHaveJSProperty('naturalWidth',1153);
   for(const width of [320,390,768,1440]){
     await page.setViewportSize({width,height:900});
@@ -14,7 +14,7 @@ test('empty platform uses official branding and exposes no seeded sellers',async
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:test.info().outputPath('referron-home-mobile.png'),fullPage:true});
   await page.goto('http://127.0.0.1:4173/market');
-  await expect(page.locator('.store-card')).toHaveCount(0);
+  await expect(page.locator('.store-card')).toHaveCount(1);
 });
 test('guest earnings page asks for authentication',async({page})=>{
   await page.goto('http://127.0.0.1:4173/earnings');

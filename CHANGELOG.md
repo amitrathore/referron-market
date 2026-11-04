@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 — 2026-11-04
+
+- Add Insights using the Attention Protocol, with permanent redirects from essay URLs.
+- Introduce a browse-only Yvatar Store with nine real credit products and reviewed catalog refresh tooling.
+
 ## 0.1.0 — 2026-11-02
 
 - Add Referron-branded marketplace with catalog, storefronts, cart, orders,

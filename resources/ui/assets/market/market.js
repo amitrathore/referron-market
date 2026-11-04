@@ -22,7 +22,6 @@ const productPath = (c) =>
 const activeGoods = () =>
   caps().filter((c) => (c.status || "active") === "active" && c.seller);
 const sellerName = id => sellerProfile(id)["display-name"] || id;
-const yvatarBrand = () => false;
 const sellerProfile = id => S.state?.gameState?.storefront?.profiles?.[id] || {};
 const brandColorFields = ["brand-primary", "brand-secondary", "brand-button"];
 const defaultBrandColors = ["#0294db", "#edf8fe", "#0172b5"];
@@ -70,7 +69,7 @@ function storefronts() {
     groups.get(c.seller).push(c);
   }
   return [...groups]
-    .sort(([a], [b]) => sellerName(a).localeCompare(sellerName(b)))
+    .sort(([a], [b]) => (a === "yvatar" ? 0 : 1) - (b === "yvatar" ? 0 : 1) || sellerName(a).localeCompare(sellerName(b)))
     .map(([id, products]) => ({ id, products: products.sort(compareMarketProducts) }));
 }
 function safeMarketImage(value) {
@@ -104,12 +103,13 @@ function sellerLogo(id) {
 }
 function storefrontHeader(store) {
   const p=sellerProfile(store.id), website=safeMarketImage(p["website-url"]);
+  const preview=store.products.length>0 && store.products.every(c=>String(c.id).startsWith("referron-preview-yvatar-"));
   return `<header class="storefront-header${sellerBrandClass(store.id)}"${sellerBrandAttributes(store.id)}>${sellerLogo(store.id)}<div><p class="eyebrow">Seller storefront</p><h1>${esc(sellerName(store.id))}</h1>${comingSoonStamp(store)}
     ${p.tagline?`<p class="storefront-tagline">${esc(p.tagline)}</p>`:""}
     <p class="storefront-description">${esc(p.description||"Explore products from "+sellerName(store.id)+".")}</p>
-    ${storeComingSoon(store)?'<p class="storefront-launch-note">This seller is not active on Referron Market yet. Check back for the launch.</p>':''}
+    ${storeComingSoon(store)?'<p class="storefront-launch-note">Purchasing on Referron Market is coming soon.</p>':''}
     <div class="storefront-links">${store.products.length?'<a class="btn" href="#storefront-products">Browse products</a>':''}${website?`<a href="${esc(website)}" target="_blank" rel="noopener noreferrer">Visit website ↗</a>`:""}
-    ${storeComingSoon(store)&&!store.products.length?'':`<a href="/@${encodeURIComponent(store.id)}" data-nav>Community profile</a>`}${p["support-email"]?`<a href="mailto:${esc(p["support-email"])}">Contact support</a>`:""}
+    ${preview||(storeComingSoon(store)&&!store.products.length)?'':`<a href="/@${encodeURIComponent(store.id)}" data-nav>Community profile</a>`}${p["support-email"]?`<a href="mailto:${esc(p["support-email"])}">Contact support</a>`:""}
     ${ownsStorefront(store.id)?`<button class="btn" data-market="edit-storefront">Edit storefront</button>`:""}</div></div></header>${storefrontEditor(store.id)}`;
 }
 function storefrontEditor(id) {

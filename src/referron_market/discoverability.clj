@@ -5,7 +5,8 @@
             [clojure.edn :as edn]
             [cheshire.core :as json]
             [game.protocols.discoverability :as d]
-            [referron-market.storefront :as storefront])
+            [referron-market.storefront :as storefront]
+            [referron-market.catalog :as catalog])
   (:import [org.commonmark.parser Parser]
            [org.commonmark.renderer.html HtmlRenderer]
            [java.time Instant LocalDate]
@@ -39,15 +40,16 @@
 (defn context
   "Receives full state but selects public fields explicitly. Never expose this input."
   [state]
-  (let [site-profile (d/profile {:profile (assoc defaults :origin (or (System/getenv "APP_BASE_URL") (:origin defaults)))} (:discoverability state))
+  (let [state (catalog/with-preview state)
+        site-profile (d/profile {:profile (assoc defaults :origin (or (System/getenv "APP_BASE_URL") (:origin defaults)))} (:discoverability state))
         intro (d/narrative {:narrative (read-resource "discovery/narrative.md")} (:discoverability state))
         posts (->> (get-in state [:attention :feed])
                    (keep (fn [it]
                            (let [p (:payload it) slug (str (or (:slug it) (:slug p) (:id it)))
-                                 path (if (= slug "manifesto") "/manifesto" (str "/essays/" (enc slug)))]
+                                 path (if (= slug "manifesto") "/manifesto" (str "/insights/" (enc slug)))]
                              (when (and (seq (:title p)) (not= "" slug))
-                               {:path path :aliases (vec (distinct (remove #{path} [(str "/essays/" (enc slug)) (str "/essays/" (enc (:id it)))])))
-                                :type "article" :group "Essays" :title (:title p) :author (:author it)
+                               {:path path :aliases (vec (distinct (remove #{path} [(str "/insights/" (enc slug)) (str "/insights/" (enc (:id it)))])))
+                                :type "article" :group "Insights" :title (:title p) :author (:author it)
                                 :description (or (:headline p) (:summary p) "") :image (:featured_image p)
                                 :html (or (:body p) (paragraph (:summary p)))
                                 :published-at (canonical-date (or (:published-at it) (:timestamp it)))
@@ -76,17 +78,17 @@
                           :title (or (:display-name p) id) :description (or (:tagline p) (:description p) (str "Products from " id))
                           :image (:logo-url p)
                           :html (str (paragraph (:description p))
-                                     (when-not ready (paragraph "Coming soon! This seller is preparing its Referron Market launch."))
+                                     (when-not ready (paragraph "Purchasing on Referron Market is coming soon."))
                                      (when (seq (:website-url p)) (link (:website-url p) "Visit seller website"))
-                                     (links (filter #(str/starts-with? (:path %) (str "/market/" (enc id) "/products/")) products)))})) profiles)
+                                     (links (filter #(str/starts-with? (:path %) (str "/market/" (enc id) "/products/")) products)))})) (sort-by (fn [[id p]] [(if (= "yvatar" (name id)) 0 1) (or (:display-name p) (name id))]) profiles))
         guides [(guide "/guides/coselling" "How coselling works" "coselling")
                 (guide "/guides/agents" "Connect your agent" "agents")
                 (guide "/guides/system" "The Referron Market system" "system")
                 (guide "/guides/market" "Agentic commerce on Referron Market" "market")]
         fixed [{:path "/" :title "Good connections. Great possibilities." :description (:summary site-profile)
                 :html (str (md-html intro) (link "/coselling" "Become a Coseller")
-                           "<h2>Essays</h2>" (links posts) "<h2>Market</h2>" (links stores))}
-               {:path "/essays" :title "Essays" :description "Ideas for building useful connections." :html (links posts)}
+                           "<h2>Insights</h2>" (links posts) "<h2>Market</h2>" (links stores))}
+               {:path "/insights" :title "Insights" :description "Ideas for building useful connections." :html (if (seq posts) (links posts) (paragraph "No insights yet. The first perspectives are being written."))}
                {:path "/market" :title "Market" :description "Discover products, services, and the people behind them." :html (links stores)}
                {:path "/coselling" :title "Become a Coseller" :description "Put your expertise and your agent to work in a trusted referral community."
                 :html (str (md-html (read-resource "discovery/coselling.md")) (link "/join" "Join Referron Market"))}
@@ -139,9 +141,9 @@
     (let [p (d/profile context state)
           tpl (read-resource "ui/index.html")
           nav (str "<header><div class=\"bar\">" (link "/" "Referron Market") "<nav aria-label=\"Main navigation\">"
-                   (link "/essays" "Essays") " " (link "/market" "Market") " " (link "/join" "Join") "</nav></div></header>")
+                   (link "/insights" "Insights") " " (link "/market" "Market") " " (link "/join" "Join") "</nav></div></header>")
           content (str nav "<main id=\"main\" tabindex=\"-1\">" (d/page-html p r) "</main><footer>"
-                       (link "/manifesto" "Manifesto") " · " (link "/coselling" "Become a Coseller") " · "
+                       (link "/insights" "Insights") " · " (link "/manifesto" "Manifesto") " · " (link "/coselling" "Become a Coseller") " · "
                        (link "/seller-agreement" "Seller Agreement") " · " (link "/privacy" "Privacy") " · " (link "/terms" "Terms") "</footer>")
           body (-> tpl
                    (str/replace #"(?s)<title>.*?</title>" "")

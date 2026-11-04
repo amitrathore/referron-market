@@ -1,0 +1,278 @@
+{
+  "source": "https://github.com/Yvatar/yvatar/tree/f994b8b41e624412081de18ce44850c237662141",
+  "retrieved-at": "2026-11-04T18:45:23.593637+00:00",
+  "catalog-version": 1,
+  "profile": {
+    "display-name": "Yvatar Store",
+    "tagline": "Bring your characters to life.",
+    "description": "Create characters, images, and video with Yvatar service credits.",
+    "logo-url": "/assets/sellers/yvatar-logo.png",
+    "website-url": "https://yvatar.com/",
+    "brand-primary": "#7657ff",
+    "brand-secondary": "#2ab7ff",
+    "brand-button": "#ffd95a"
+  },
+  "capabilities": {
+    "referron-preview-yvatar-single": {
+      "id": "referron-preview-yvatar-single",
+      "seller": "yvatar",
+      "title": "1 image credit \u2014 $1.97",
+      "description": "1 image creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:single",
+      "terms": {
+        "price": {
+          "amount": 197,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-image-credits.png",
+          "alt": "Yvatar AI image creation credits"
+        }
+      ],
+      "display-order": 10,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-pack": {
+      "id": "referron-preview-yvatar-pack",
+      "seller": "yvatar",
+      "title": "10 image credits \u2014 $5.97",
+      "description": "10 image creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:pack",
+      "terms": {
+        "price": {
+          "amount": 597,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-image-credits.png",
+          "alt": "Yvatar AI image creation credits"
+        }
+      ],
+      "display-order": 20,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-image-100": {
+      "id": "referron-preview-yvatar-image-100",
+      "seller": "yvatar",
+      "title": "100 image credits \u2014 $39.97",
+      "description": "100 image creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:image-100",
+      "terms": {
+        "price": {
+          "amount": 3997,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-image-credits.png",
+          "alt": "Yvatar AI image creation credits"
+        }
+      ],
+      "display-order": 30,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-video-single": {
+      "id": "referron-preview-yvatar-video-single",
+      "seller": "yvatar",
+      "title": "1 video credit \u2014 $2.47",
+      "description": "1 video creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:video-single",
+      "terms": {
+        "price": {
+          "amount": 247,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-video-credits.png",
+          "alt": "Yvatar AI video creation credits"
+        }
+      ],
+      "display-order": 40,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-video-10": {
+      "id": "referron-preview-yvatar-video-10",
+      "seller": "yvatar",
+      "title": "10 video credits \u2014 $19.70",
+      "description": "10 video creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:video-10",
+      "terms": {
+        "price": {
+          "amount": 1970,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-video-credits.png",
+          "alt": "Yvatar AI video creation credits"
+        }
+      ],
+      "display-order": 50,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-video-100": {
+      "id": "referron-preview-yvatar-video-100",
+      "seller": "yvatar",
+      "title": "100 video credits \u2014 $147.00",
+      "description": "100 video creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:video-100",
+      "terms": {
+        "price": {
+          "amount": 14700,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-video-credits.png",
+          "alt": "Yvatar AI video creation credits"
+        }
+      ],
+      "display-order": 60,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-script-single": {
+      "id": "referron-preview-yvatar-script-single",
+      "seller": "yvatar",
+      "title": "1 script credit \u2014 $0.97",
+      "description": "1 script creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:script-single",
+      "terms": {
+        "price": {
+          "amount": 97,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-script-credits.png",
+          "alt": "Yvatar AI script creation credits"
+        }
+      ],
+      "display-order": 70,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-script-10": {
+      "id": "referron-preview-yvatar-script-10",
+      "seller": "yvatar",
+      "title": "10 script credits \u2014 $3.97",
+      "description": "10 script creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:script-10",
+      "terms": {
+        "price": {
+          "amount": 397,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-script-credits.png",
+          "alt": "Yvatar AI script creation credits"
+        }
+      ],
+      "display-order": 80,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    },
+    "referron-preview-yvatar-script-100": {
+      "id": "referron-preview-yvatar-script-100",
+      "seller": "yvatar",
+      "title": "100 script credits \u2014 $9.97",
+      "description": "100 script creation credits. Redeemable only on Yvatar; no cash value.",
+      "kind": "digital-service-credit",
+      "status": "active",
+      "external-ref": "yvatar:script-100",
+      "terms": {
+        "price": {
+          "amount": 997,
+          "currency": "USD"
+        }
+      },
+      "images": [
+        {
+          "url": "/assets/sellers/marketplace-script-credits.png",
+          "alt": "Yvatar AI script creation credits"
+        }
+      ],
+      "display-order": 90,
+      "category-ids": [
+        "software"
+      ],
+      "commerce": {
+        "checkout-enabled": false,
+        "catalog-version": 1
+      }
+    }
+  }
+}

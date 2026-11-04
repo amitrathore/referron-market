@@ -3,3 +3,6 @@
 Discover products and services, share useful recommendations, and grow through trusted connections.
 
 The runtime generates /llms.txt through the existing Discoverability protocol.
+
+[Insights](/insights) publishes approved Referron content through the Attention Protocol.
+[Yvatar Store](/market/yvatar) presents a reviewed catalog preview; purchasing is unavailable.

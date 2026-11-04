@@ -5,7 +5,8 @@ Agents of Mind, Yvatar, Daemons and infrastructure repositories are read-only
 references. Consume published gm-lib; do not locally install an override.
 
 Brand source: https://www.referron.com/ and DESIGN.md. Preserve official assets.
-No real sellers, inventory, or fabricated metrics in initial production state.
+Yvatar is the authorized browse-only first store, using a reviewed public catalog
+snapshot. Do not fabricate metrics or enable purchasing or seller integrations.
 
 Checks: `lein test`, `npm run test:ui`, `docker build -t referron-market:local .`.
 Local stack: `./scripts/local.sh up`; guest-only preview: `npm run preview`.

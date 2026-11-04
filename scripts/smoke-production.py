@@ -30,14 +30,15 @@ check(config.get('logo_url')==base+'/assets/brand/referron-logo.png','absolute o
 status,public=request(base,'/ui/public-state')
 check(status==200,'public state loads through MoM')
 state=public['gameState']
-check(not state.get('market',{}).get('capabilities'),'catalog is empty')
-check(not state.get('storefront',{}).get('profiles'),'no seeded sellers')
+products=[c for c in state.get('market',{}).get('capabilities',{}).values() if c.get('seller')=='yvatar']
+check(bool(products) and all(c.get('commerce',{}).get('checkout-enabled') is False for c in products),'Yvatar catalog is browse-only')
+check(state.get('storefront',{}).get('profiles',{}).get('yvatar',{}).get('display-name')=='Yvatar Store','Yvatar storefront published')
 check('coseller' not in state and 'seller-agreement' not in state,'private state excluded')
 status,mode=request(base,'/api/market/payment-mode')
 check(status==200 and mode.get('mode')=='unavailable','live payments disabled')
 status,_=request(base,'/v1/gm/handle',method='POST',body={'event/type':'gm/query-state','event/data':{}})
 check(status==401,'unsigned MoM webhook is rejected')
-for path in ['/','/market','/coselling','/seller-agreement','/llms.txt','/sitemap.xml']:
+for path in ['/','/insights','/market','/market/yvatar','/coselling','/seller-agreement','/llms.txt','/sitemap.xml']:
     status,body=request(base,path);check(status==200,'public route '+path)
     if path=='/sitemap.xml':check(base in body,'canonical sitemap origin')
 bootstrap=os.environ.get('MOM_GAME_TOKEN')

@@ -4,10 +4,10 @@ const ShareWidget=(()=>{
   let opened=false, target=null, busy=false, message='', generation=0;
   const panel=()=>document.getElementById('share-panel');
   function publicPath(path){
-    const url=new URL(path,location.origin), p=url.pathname;
+    const url=new URL(path,location.origin), p=url.pathname.replace(/^\/essays(?=\/|$)/,'/insights');
     if(url.origin!==location.origin) return '/';
-    return ['/', '/essays', '/market', '/manifesto', '/coselling', '/privacy', '/terms'].includes(p)
-      || /^\/(essays|topics|guides)\/[^/]+$/.test(p)
+    return ['/', '/insights', '/market', '/manifesto', '/coselling', '/privacy', '/terms'].includes(p)
+      || /^\/(insights|topics|guides)\/[^/]+$/.test(p)
       || /^\/@[^/]+$/.test(p)
       || (p!=='/market/cart' && /^\/market\/[^/]+(?:\/products\/[^/]+)?$/.test(p)) ? p : '/';
   }
