@@ -1,0 +1,35 @@
+app = 'referron-market'
+# Credentials and production Intergraph connections come from root .envrc.
+primary_region = 'sjc'
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
+[build]
+  dockerfile = 'Dockerfile'
+[env]
+  GM_PORT = '8888'
+  GAME_NAME = 'referron-market'
+  PLAYER_GROUP_ID = 'referron-market-prod-gm'
+  MARKET_PAYMENT_PROVIDER = 'stub'
+  STRIPE_CONNECT_ENABLED = 'false'
+  SHOPTYPE_ENABLED = 'false'
+[http_service]
+  internal_port = 8888
+  force_https = true
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 40
+    hard_limit = 60
+  [[http_service.checks]]
+    grace_period = '60s'
+    interval = '15s'
+    timeout = '5s'
+    method = 'GET'
+    path = '/health'
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1

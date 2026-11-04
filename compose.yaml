@@ -1,0 +1,91 @@
+name: referron-local
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: referron_mom
+      POSTGRES_USER: referron
+      POSTGRES_PASSWORD: ${LOCAL_PG_PASSWORD:?Run scripts/local.sh init}
+    volumes: [mom-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U referron -d referron_mom']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  mom:
+    image: referron-local-mom
+    build: ${INTERGRAPH_ROOT:-../intergraph}/mom
+    mem_limit: 1536m
+    depends_on:
+      postgres: {condition: service_healthy}
+    ports: ['127.0.0.1:18080:8080', '127.0.0.1:17888:7888']
+    environment:
+      MOM_PORT: '8080'
+      MOM_STORAGE_BACKEND: postgres
+      MOM_PG_HOST: postgres
+      MOM_PG_PORT: '5432'
+      MOM_PG_DATABASE: referron_mom
+      MOM_PG_USER: referron
+      MOM_PG_PASSWORD: ${LOCAL_PG_PASSWORD}
+      MOM_JWT_SECRET: ${LOCAL_JWT_SECRET:?Run scripts/local.sh init}
+      MOM_GM_OUTBOUND_TOKEN: ${MOM_GM_OUTBOUND_TOKEN:?Run scripts/local.sh init}
+      MOM_MCP_TOKEN: ${LOCAL_MCP_TOKEN}
+      MOM_TREASURY_SERVICE_TOKEN: ${LOCAL_TREASURY_TOKEN}
+      MOM_TREASURY_ADMINS: ${MOM_DEV_EMAIL}
+      MOM_PLATFORM_ADMINS: ${MOM_DEV_EMAIL}
+      MOM_NREPL_PORT: '7888'
+      MOM_NREPL_BIND: 0.0.0.0
+      MOM_CORS_ORIGINS: http://localhost:8891,http://localhost:15176,http://localhost:18081
+      MOM_FILE_STORE_BACKEND: memory
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- http://localhost:8080/ui/games >/dev/null']
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 30
+  auth-ui:
+    image: referron-local-auth
+    build: ${INTERGRAPH_ROOT:-../intergraph}/mom/auth-ui
+    ports: ['127.0.0.1:15176:5176']
+    depends_on:
+      mom: {condition: service_healthy}
+  portal:
+    image: referron-local-mom
+    entrypoint: [sh, -c, 'exec java $$JAVA_OPTS -cp app.jar clojure.main -m portal.main']
+    mem_limit: 512m
+    ports: ['127.0.0.1:18081:8081']
+    environment:
+      MOM_BASE_URL: http://mom:8080
+      MOM_PUBLIC_BASE_URL: http://localhost:18080
+      PORTAL_PUBLIC_BASE_URL: http://localhost:18081
+    depends_on:
+      mom: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, 'wget -qO- http://localhost:8081/ >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  referron:
+    image: referron-market:local
+    build: .
+    mem_limit: 768m
+    ports: ['127.0.0.1:8891:8888']
+    environment:
+      GM_PORT: '8888'
+      GM_URL: http://referron:8888
+      MOM_URL: http://mom:8080
+      MOM_PUBLIC_BASE_URL: http://localhost:18080
+      APP_BASE_URL: http://localhost:8891
+      AUTH_BASE_URL: http://localhost:15176
+      GM_OWNER_ID: ${GM_OWNER_ID:?Run scripts/local.sh init}
+      GAME_NAME: referron-market-local
+      PLAYER_GROUP_ID: referron-market-local-gm
+      MOM_GAME_TOKEN: ${MOM_GAME_TOKEN:-}
+      MOM_GM_OUTBOUND_TOKEN: ${MOM_GM_OUTBOUND_TOKEN}
+      MARKET_PAYMENT_PROVIDER: stub
+      STRIPE_CONNECT_ENABLED: 'false'
+      SHOPTYPE_ENABLED: 'false'
+    depends_on:
+      mom: {condition: service_healthy}
+volumes:
+  mom-data:

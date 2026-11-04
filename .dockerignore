@@ -1,0 +1,10 @@
+.git
+.env
+.env.*
+.envrc
+.envrc.*
+node_modules
+target
+test-results
+playwright-report
+.local

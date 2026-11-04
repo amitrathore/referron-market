@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Referron Market — Connect. Refer. Grow.</title>
+<meta name="description" content="Discover products and services worth sharing. Make trusted recommendations, open new doors, and earn from the value you help create.">
+
+
+<link rel="apple-touch-icon" href="/assets/brand/favicon-v2-180.png" sizes="180x180">
+<link rel="icon" href="/assets/brand/favicon-v2.svg" type="image/svg+xml" sizes="any">
+<link rel="icon" href="/assets/brand/favicon-v2-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/assets/brand/favicon-v2-16.png" type="image/png" sizes="16x16">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f7f8fa">
+<meta name="color-scheme" content="light">
+<script>
+try {
+  const theme = localStorage.getItem('referron.theme') === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+  document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#19191d' : '#f5f5f7';
+} catch (_) {}
+</script>
+<!-- og:start -->
+<meta property="og:site_name" content="Referron Market">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Referron Market — Good connections. Great possibilities.">
+<meta property="og:description" content="Discover products and services worth sharing. Make trusted recommendations, open new doors, and earn from the value you help create.">
+
+<meta property="og:image" content="https://referron.coselling.ai/assets/brand/social-card-v2.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Referron Market: Good connections. Great possibilities. The official Referron mark connects a network of shared opportunity.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Referron Market — Good connections. Great possibilities.">
+<meta name="twitter:description" content="Discover products and services worth sharing. Make trusted recommendations, open new doors, and earn from the value you help create.">
+<meta name="twitter:image" content="https://referron.coselling.ai/assets/brand/social-card-v2.png">
+<meta name="twitter:image:alt" content="Referron Market: Good connections. Great possibilities. The official Referron mark connects a network of shared opportunity.">
+<!-- og:end -->
+<link rel="stylesheet" href="/assets/theme.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="app"><main><div class="hero"><h1 class="display skel">&nbsp;</h1></div></main></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="share-panel" aria-labelledby="share-panel-title" oncancel="ShareWidget.close()"></dialog>
+
+<script src="/assets/market/market.js"></script>
+<script src="/assets/commercial.js"></script>
+<script src="/assets/sharing.js"></script>
+<script src="/assets/discoverability.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   Referron Market — client. No framework, no build step.
+   Wired to /ui/public-state, /session, /public/touch,
+   /coseller/claim-visitor.
+   ══════════════════════════════════════════════════════════════════ */
+const S={state:null,session:null,seats:[],seatError:null,coseller:null,cosellerError:null,contributorError:null,sellerAgreement:null,sellerAcceptance:null,sellerAgreementError:null,operatorApplications:null,operatorError:null,loading:true,error:null};
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let seatToken=null, seatTokenError='', seatTokenBusy=false, seatTokenVisible=false;
+let seatTokenTimer=null, seatTokenRequestId=0;
+function clearSeatToken(){
+  seatTokenRequestId++;
+  if(seatTokenTimer) clearTimeout(seatTokenTimer);
+  seatTokenTimer=null; seatToken=null; seatTokenError='';
+  seatTokenBusy=false; seatTokenVisible=false;
+}
+
+/* ── theme ── */
+const THEME_KEY='referron.theme';
+function toggleTheme(){
+  const cur=document.documentElement.getAttribute('data-theme')||'light';
+  const next=cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  document.documentElement.style.colorScheme=next;
+  document.querySelector('meta[name="theme-color"]').content=next==='dark'?'#19191d':'#f5f5f7';
+  try{localStorage.setItem(THEME_KEY,next);}catch(_){}
+  const button=document.querySelector('.theme-toggle');
+  button.title=button.ariaLabel=next==='dark'?'Switch to light theme':'Switch to dark theme';
+  button.querySelector('img').src='/assets/brand/'+(next==='dark'?'sun':'moon')+'.svg';
+}
+
+/* ── attribution ────────────────────────────────────────────────
+   Every URL here is a coseller surface once it carries ?ref=.
+   Two things are load-bearing:
+   1. the ref is stashed in localStorage as well as the GM cookie,
+      because signing in is a FULL navigation to the auth app that
+      destroys page state — the bug that silently cost every
+      conversion on the-js.
+   2. first touch wins; a later ref must not overwrite an earlier one. */
+const REF_KEY='referron.ref', REF_TTL=30*24*60*60*1000, CLAIMED='referron.claimed';
+function stashRef(){
+  const t=new URLSearchParams(location.search).get('ref');
+  if(!t) return;
+  try{
+    const prior=JSON.parse(localStorage.getItem(REF_KEY)||'null');
+    if(prior && Date.now()-prior.at < REF_TTL) return;
+    localStorage.setItem(REF_KEY,JSON.stringify({token:t,at:Date.now()}));
+  }catch(e){}
+}
+async function fireTouch(){
+  const t=new URLSearchParams(location.search).get('ref');
+  if(!t) return;
+  try{
+    await fetch('/public/touch',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:t,path:location.pathname})});
+  }catch(e){/* best-effort; never block the read */}
+}
+async function claimIfNeeded(){
+  if(!S.session?.authenticated || localStorage.getItem(CLAIMED)==='1') return;
+  try{
+    const r=await fetch('/coseller/claim-visitor',{method:'POST',credentials:'include',headers:auth()});
+    if(r.ok) localStorage.setItem(CLAIMED,'1');
+  }catch(e){}
+}
+const SEAT_KEY='referron.selected-seat';
+function storedSeat(){try{return localStorage.getItem(SEAT_KEY)||'';}catch(e){return '';}}
+function auth(){
+  const t=localStorage.getItem('referron.token'), seat=storedSeat();
+  return {...(t?{'Authorization':'Bearer '+t}:{}),...(t&&seat?{'x-selected-seat':seat}:{})};
+}
+
+/* ── data ── */
+async function load(){
+  try{
+    const r=await fetch('/ui/public-state',{credentials:'include',headers:auth()});
+    if(!r.ok) throw new Error('state '+r.status);
+    S.state=await r.json();
+  }catch(e){S.error=e.message;}
+  try{
+    const r=await fetch('/session',{credentials:'include',headers:auth()});
+    if(r.ok) S.session=await r.json();
+  }catch(e){}
+  if(seatToken && (!S.session?.authenticated ||
+                   S.session?.selectedSeat?.playerName!==seatToken.playerName)) clearSeatToken();
+  S.seats=[]; S.seatError=null;
+  if(S.session?.authenticated && S.session.seatCount>0){
+    try{
+      const r=await fetch('/seats',{credentials:'include',headers:auth()});
+      if(!r.ok) throw new Error('seats '+r.status);
+      const body=await r.json();
+      if(!Array.isArray(body.seats)) throw new Error('Invalid seat list');
+      S.seats=body.seats;
+      if(storedSeat()&&!S.seats.some(seat=>seat.playerName===storedSeat()))
+        localStorage.removeItem(SEAT_KEY);
+    }catch(e){S.seatError=e.message;}
+  }
+  /* /auth.json is the CONFIG the hosted auth app consumes, not a page. The
+     Sign in button linked straight at it, so clicking it showed the raw JSON
+     document instead of signing anyone in. The app lives at auth_base_url and
+     wants the config as a query param — see mom/auth-ui App.jsx, which errors
+     with "Missing config URL. Provide ?config=<url>." */
+  try{
+    const r=await fetch('/auth.json',{credentials:'omit'});
+    if(r.ok) S.authcfg=await r.json();
+  }catch(e){}
+  S.loading=false;
+}
+const seatRoles=()=>S.session?.selectedSeat?.playerRoles||
+  (S.session?.selectedSeat?.playerRole?[S.session.selectedSeat.playerRole]:[]);
+const hasRole=role=>seatRoles().includes(role);
+async function loadCoseller(){
+  S.coseller=null; S.cosellerError=null;
+  if(!seated()||!hasRole('coseller')) return;
+  try{
+    const r=await fetch('/api/coseller/program',{credentials:'include',headers:auth()});
+    const body=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(body?.error?.message||body?.error||('program '+r.status));
+    S.coseller=body;
+  }catch(e){S.cosellerError=e.message;}
+}
+async function loadSellerAgreement(){
+  S.sellerAgreementError=null;
+  try{
+    const r=await fetch('/api/seller/agreement',{credentials:'include'});
+    const body=await r.json();
+    if(!r.ok) throw new Error('Agreement unavailable. Please try again later.');
+    S.sellerAgreement=body;
+  }catch(e){S.sellerAgreementError=e.message;}
+  S.sellerAcceptance=null;
+  S.commercial=null;S.commercialError=null;
+  if(!seated()) return;
+  try{
+    const r=await fetch('/api/seller/agreement/status',{credentials:'include',headers:auth()});
+    if(r.ok) S.sellerAcceptance=(await r.json()).acceptance||null;
+  }catch(e){}
+  await loadCommercialSchedule();
+}
+async function loadOperatorApplications(){
+  if(!hasRole('operator')) return;
+  S.operatorError=null;
+  try{
+    const r=await fetch('/api/operator/sellers',{credentials:'include',headers:auth()});
+    const body=await r.json();
+    if(!r.ok) throw new Error(body.error?.message||'Seller applications unavailable.');
+    S.operatorApplications=body.applications||[];
+  }catch(e){S.operatorError=e.message;}
+}
+
+/* Empty when the config has not loaded or carries no auth_base_url, so the
+   button renders as disabled rather than navigating somewhere useless. */
+function signInUrl(){
+  const b=S.authcfg?.auth_base_url;
+  if(!b) return '';
+  return b.replace(/\/$/,'')+'/?config='+encodeURIComponent(location.origin+'/auth.json');
+}
+
+/* Sign-out is the same auth app with ?logout=true: it calls Clerk signOut()
+   and then returns here via the config's logout_url. There is no local session
+   to clear — the GM holds none, the Clerk session is the session — so doing
+   this ourselves would leave the user still signed in at the auth origin and
+   silently signed straight back in on the next visit. */
+function signOutUrl(){
+  const u=signInUrl();
+  return u ? u+'&logout=true' : '';
+}
+
+/* Clerk's signOut() ends the session at the auth origin; this drops OUR copy
+   of the token. Without it the SPA still holds a JWT for a session that no
+   longer exists and keeps rendering as signed in until the token expires. */
+function dropToken(){
+  ShareWidget.close();S.coseller=null;
+  clearSeatToken();
+  try{localStorage.removeItem('referron.token');localStorage.removeItem(SEAT_KEY);}catch(e){}
+}
+
+/* Signed in is not the same as seated. Enrolment no longer happens silently,
+   so "authenticated with no seat" is a real, ordinary state and every surface
+   that assumed a seat has to say so instead of rendering @undefined. */
+const seated=()=>!!S.session?.selectedSeat?.playerName;
+const seatChoiceRequired=()=>S.session?.authenticated && !seated() &&
+  (S.seats.length>0 || (S.session?.seatCount||0)>0);
+async function selectSeat(name){
+  if(!S.seats.some(seat=>seat.playerName===name)) return;
+  ShareWidget.close(false);
+  clearSeatToken();
+  try{localStorage.setItem(SEAT_KEY,name);}catch(e){S.seatError='Could not save your seat selection.';render();return;}
+  await load();
+  await loadCoseller(); await loadMarket(); await loadSellerAgreement(); resumeMarketReturn(); render(); await ShareWidget.resume();
+}
+async function retrySeats(){await load();await loadMarket();render();}
+function seatPicker(){
+  if(S.seats.length<2) return '';
+  const chosen=S.session?.selectedSeat?.playerName||'';
+  return `<label class="seat-switch">Acting as <select aria-label="Player seat" onchange="selectSeat(this.value)">
+    <option value="" ${chosen?'':'selected'} disabled>Choose a seat</option>
+    ${S.seats.map(seat=>`<option value="${esc(seat.playerName)}" ${seat.playerName===chosen?'selected':''}>@${esc(seat.playerName)}</option>`).join('')}
+  </select></label>`;
+}
+async function generateSeatToken(){
+  if(seatTokenBusy||!seated()) return;
+  clearSeatToken();
+  seatTokenBusy=true;
+  const requestId=seatTokenRequestId, playerName=S.session.selectedSeat.playerName;
+  render();
+  try{
+    const r=await fetch('/api/player-token',{method:'POST',credentials:'include',cache:'no-store',headers:auth()});
+    const body=await r.json().catch(()=>({}));
+    if(requestId!==seatTokenRequestId||S.session?.selectedSeat?.playerName!==playerName) return;
+    if(!r.ok||!body.token) throw new Error(body?.error?.message||'Could not create a seat token. Try again.');
+    const expiresAt=Number(body.expiresAt);
+    if(body.playerName!==playerName||!Number.isFinite(expiresAt)||expiresAt<=Date.now())
+      throw new Error('The token response was invalid. Try again.');
+    seatToken={value:body.token,playerName,expiresAt};
+    seatTokenTimer=setTimeout(()=>{clearSeatToken();if(route().v==='studio') render();},
+      Math.min(expiresAt-Date.now(),2147483647));
+  }catch(e){
+    if(requestId!==seatTokenRequestId) return;
+    seatTokenError=e.message;
+  }
+  seatTokenBusy=false;
+  render();
+}
+async function copySeatToken(){
+  if(!seatToken||seatToken.expiresAt<=Date.now()) return;
+  try{await navigator.clipboard.writeText(seatToken.value);toast('Seat token copied');}
+  catch(e){toast('Could not copy token. Reveal it to copy manually.');}
+}
+function toggleSeatToken(){seatTokenVisible=!seatTokenVisible;render();}
+
+/* MoM validates the handle and owns uniqueness, so its rejection is shown
+   verbatim rather than re-implemented here — a client-side rule that drifts
+   from the server's is worse than no rule. */
+async function claimHandle(ev,activateAfter=false){
+  ev.preventDefault();
+  const el=document.getElementById('handle');
+  const err=document.getElementById('handle-err');
+  const name=(el?.value||'').trim();
+  err.textContent='';
+  if(!name){ err.textContent='Pick a handle first.'; return; }
+  try{
+    const r=await fetch('/join/claim',{method:'POST',credentials:'include',
+      headers:Object.assign({'Content-Type':'application/json'},auth()),
+      /* Audience is the reading seat. Contributor and coseller are claimed
+         separately by a player who wants to write or share. */
+      body:JSON.stringify({'player-name':name,'roles':['audience']})});
+    const body=await r.json().catch(()=>({}));
+    if(!r.ok){
+      err.textContent = body.message || body.error || ('Could not claim that handle ('+r.status+').');
+      return;
+    }
+    await load();
+    if(activateAfter) await activateCoseller();
+    else { await loadCoseller(); await loadMarket(); await loadSellerAgreement(); resumeReturn(); resumeMarketReturn(); render(); await ShareWidget.resume(); }
+  }catch(e){ err.textContent='Network error — try again.'; }
+}
+async function activateCoseller({renderPage=true}={}){
+  S.cosellerError=null;
+  try{
+    const r=await fetch('/api/coseller/activate',{method:'POST',credentials:'include',headers:auth()});
+    const body=await r.json().catch(()=>({}));
+    if(!r.ok||body.error) throw new Error(body?.error?.message||body?.error?.code||body.error||'Activation failed');
+    await load(); await loadCoseller(); await loadMarket();
+    if(renderPage)render(); toast('Coselling activated — your sharing link is ready');
+  }catch(e){S.cosellerError=e.message;if(renderPage)render();}
+}
+async function becomeContributor(){
+  if(!seated()||hasRole('contributor')) return;
+  S.contributorError=null;
+  try{
+    const r=await fetch('/join/claim',{method:'POST',credentials:'include',
+      headers:Object.assign({'Content-Type':'application/json'},auth()),
+      body:JSON.stringify({'player-name':S.session.selectedSeat.playerName,'roles':['contributor']})});
+    const body=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(body.message||body.error||'Could not claim Contributor.');
+    await load();
+    render();
+    toast('Contributor role added to your handle');
+  }catch(e){S.contributorError=e.message;render();}
+}
+async function copyCosellerLink(path='/'){
+  const token=myRefToken();
+  if(!token){toast('Activate Coselling first');return;}
+  const url=ShareWidget.url(path,token);
+  try{await navigator.clipboard.writeText(url);toast('Sharing link copied');}
+  catch(e){toast('Copy failed');}
+}
+function rememberReturn(path){try{sessionStorage.setItem('referron.return',path);}catch(e){}}
+function resumeReturn(){
+  try{
+    const path=sessionStorage.getItem('referron.return');
+    if(path&&S.session?.authenticated){sessionStorage.removeItem('referron.return');history.replaceState({},'',path);}
+  }catch(e){}
+}
+const gs=()=>S.state?.gameState||{};
+/* Newest first. The protocol's feed is append-only — review-task conjs onto
+   the end — so the raw vector is oldest-first, which buries the newest essay
+   under everything before it. Sorted here rather than in the GM so the stored
+   order stays the publication record.
+
+   slice() first: sort mutates, and this array is the live state object shared
+   with every other view. */
+const feed=()=>(gs().attention?.feed||[])
+  .slice()
+  .sort((a,b)=>(b?.['published-at']||0)-(a?.['published-at']||0));
+const bible=()=>gs().attention?.['brand-bible']||{};
+const caps=()=>Object.values(gs().market?.capabilities||{});
+const topics=()=>S.state?.topics||[];
+const myRefToken=()=>ShareWidget.token();
+const slugOf=it=>it?.slug||it?.payload?.slug||it?.id;
+/* Match on slug OR id. The first post was published before slugs existed and
+   its UUID URL is already shared; resolving only by slug would 404 it the
+   moment anything gained one. This also makes a later backfill non-breaking. */
+const findPost=key=>feed().find(x=>String(slugOf(x))===String(key)
+                                 || String(x?.id)===String(key));
+const titleOf=it=>it?.payload?.title||'Untitled';
+
+/* ── routing ── */
+function route(){
+  const p=location.pathname;
+  if(p==='/'||p==='') return {v:'home'};
+  if(p==='/essays') return {v:'essays'};
+  if(p==='/manifesto') return {v:'manifesto'};
+  if(p==='/join') return {v:'join'};
+  if(p==='/earnings') return {v:'earnings'};
+  if(p==='/coselling') return {v:'coselling'};
+  if(p==='/studio') return {v:'studio'};
+  if(p==='/market') return {v:'market'};
+  const marketMatch=p.match(/^\/market\/([^/]+)(?:\/products\/([^/]+))?$/);
+  if(marketMatch) return {v:'market',seller:decodeURIComponent(marketMatch[1]),product:marketMatch[2]&&decodeURIComponent(marketMatch[2])};
+  if(p==='/privacy') return {v:'privacy'};
+  if(p==='/terms') return {v:'terms'};
+  if(p==='/seller-agreement') return {v:'seller-agreement'};
+  if(p==='/operator/discoverability') return {v:'operator-discoverability'};
+  if(p.startsWith('/guides/')) return {v:'guide'};
+  if(p==='/operator/sellers') return {v:'operator-sellers'};
+  if(p.startsWith('/essays/')) return {v:'essay',slug:decodeURIComponent(p.slice(8))};
+  if(p.startsWith('/topics/')) return {v:'topic',topic:decodeURIComponent(p.slice(8))};
+  if(p.startsWith('/@')) return {v:'person',name:decodeURIComponent(p.slice(2))};
+  return {v:'missing'};
+}
+function go(href,e){if(e)e.preventDefault();ShareWidget.close(false);if(Market.embedded){Market.embedded.destroy();Market.embedded=null;}if(href!=='/studio')clearSeatToken();history.pushState({},'',href);render();if(route().v==='seller-agreement'&&!S.sellerAgreement)loadSellerAgreement().then(render);if(route().v==='operator-sellers')loadOperatorApplications().then(render);if(route().v==='operator-discoverability')loadDiscovery().then(render);scrollTo(0,0);}
+addEventListener('popstate',()=>{Market.embedded?.destroy();Market.embedded=null;if(route().v!=='studio')clearSeatToken();render();if(route().v==='seller-agreement'&&!S.sellerAgreement)loadSellerAgreement().then(render);if(route().v==='operator-sellers')loadOperatorApplications().then(render);if(route().v==='operator-discoverability')loadDiscovery().then(render);});
+document.addEventListener('click',e=>{
+  const choice=e.target.closest('[data-choose-seat]');
+  if(choice){selectSeat(choice.dataset.chooseSeat);return;}
+  const a=e.target.closest('a[data-nav]');
+  if(a&&a.origin===location.origin) go(a.getAttribute('href'),e);
+});
+
+/* ── share: one button, no affiliate vocabulary anywhere ── */
+async function share(){
+  const tok=myRefToken();
+  const url=ShareWidget.url(location.pathname,tok);
+  try{await navigator.clipboard.writeText(url.toString());
+      toast(tok?'Link copied — it carries your name':'Link copied');}
+  catch(e){toast('Copy failed');}
+}
+let toastT;
+function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600);}
+
+/* ── views ── */
+function connectNotice(){
+  const p=new URLSearchParams(location.search), result=p.get('connect');
+  if(result==='return') return '<div class="connect-notice" role="status">Stripe account connected. <a href="/market" data-nav>Return to the market</a>.</div>';
+  if(result!=='error') return '';
+  const reasons={
+    'stripe-authorization-denied':'Stripe did not authorize the connection.',
+    'invalid-state':'The connection link was invalid or changed. Start a new connection from your seller page.',
+    'missing-code':'Stripe did not return an authorization code. Start a new connection.',
+    'configuration-unavailable':'The connection is temporarily unavailable.',
+    'attempt-unavailable':'This connection attempt expired or was already used. Start a new connection.',
+    'attempt-mismatch':'The connection attempt did not match your seller.',
+    'oauth-invalid-grant':'Stripe rejected the authorization code. Start a new connection from your seller page.',
+    'oauth-invalid-client':'Stripe did not recognize the platform connection settings.',
+    'oauth-invalid-request':'Stripe rejected the connection request.',
+    'oauth-exchange-failed':'Stripe could not complete the authorization exchange.',
+    'seller-account-not-ready':'The Stripe account is not yet ready to accept payments and payouts.',
+    'account-mismatch':'A different Stripe account was selected. Choose your seller account.',
+    'account-save-failed':'The Stripe account was authorized but could not be saved. Contact support before trying again.'
+  };
+  const reason=p.get('reason');
+  return `<div class="connect-notice error" role="alert">${reasons[reason]||'Stripe account connection failed.'} ${reason&&Object.hasOwn(reasons,reason)?`<small>Code: ${reason}</small>`:''}</div>`;
+}
+function chrome(inner){
+  const r=route(), on=v=>r.v===v?'class="on" aria-current="page"':'';
+  const me=S.session?.selectedSeat?.playerName;
+  const dark=document.documentElement.dataset.theme==='dark';
+  return `
+  <header><div class="bar">
+    <a class="wordmark" href="/" data-nav aria-label="Referron Market home" ${on('home')}><img class="brand-mark" src="/assets/brand/referron-logo.png" width="158" height="40" alt=""><span class="market-word">Market</span></a>
+    <nav aria-label="Main navigation">
+      <a href="/coselling" data-nav ${on('coselling')}>Refer & earn</a>
+      <a href="/seller-agreement" data-nav ${on('seller-agreement')}>Sell with us</a>
+      <a href="/market" data-nav ${on('market')}>Market</a>
+      ${S.session?.authenticated?`<a href="/earnings" data-nav ${on('earnings')}>Earnings</a><a href="/studio" data-nav ${on('studio')}>My account</a>`:''}
+      ${!S.session?.authenticated
+        ? `<a href="/join" data-nav ${on('join')}>Join</a>`
+        : seated()
+          ? `<a href="/@${esc(me)}" data-nav>@${esc(me)}</a>`
+          : S.seats.length>1
+            ? ''
+            : `<a href="/join" data-nav ${on('join')}>${seatChoiceRequired()?'Choose a seat':'Pick a handle'}</a>`}
+      <button id="share-trigger" class="share-trigger" aria-haspopup="dialog" aria-controls="share-panel" aria-expanded="false" onclick="ShareWidget.open()">Share-to-Earn</button>
+      ${S.session?.authenticated && signOutUrl()
+        ? `<a href="${signOutUrl()}" onclick="dropToken()" title="Sign out">Sign out</a>` : ''}
+      <button class="theme-toggle" onclick="toggleTheme()" title="Switch to ${dark?'light':'dark'} theme" aria-label="Switch to ${dark?'light':'dark'} theme"><img src="/assets/brand/${dark?'sun':'moon'}.svg" alt="" width="20" height="20"></button>
+    </nav>
+  </div></header>
+  <main id="main" tabindex="-1">${connectNotice()}${inner}</main>
+  <footer>
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="wordmark" href="/" data-nav><img class="brand-mark" src="/assets/brand/referron-logo.png" width="158" height="40" alt=""><span class="market-word">Market</span></a>
+        <p>Trusted connections. Shared opportunity.<br>Connect. Refer. Grow.</p>
+        ${seatPicker()}
+      </div>
+      <div class="foot-col">
+        <h4>Read</h4>
+        <a href="/essays" data-nav>Essays</a>
+        <a href="/manifesto" data-nav>Manifesto</a>
+        <a href="/market" data-nav>Market</a>
+      </div>
+      <div class="foot-col">
+        <h4>Participate</h4>
+        ${S.session?.authenticated && seated()
+          ? `<a href="/studio" data-nav>Studio</a>`
+          : `<a href="/join" data-nav>Join</a>`}
+        <a href="/seller-agreement" data-nav>Become a Seller</a>
+        <a href="/coselling" data-nav>Become a referrer</a>
+        ${hasRole('operator')?`<a href="/operator/sellers" data-nav>Seller reviews</a><a href="/operator/discoverability" data-nav>Discoverability</a>`:''}
+      </div>
+      <div class="foot-col">
+        <h4>Legal</h4>
+        <a href="/privacy" data-nav>Privacy Policy</a>
+        <a href="/terms" data-nav>Terms of Service</a>
+        <a href="/seller-agreement" data-nav>Seller Agreement</a>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span class="mono">© ${new Date().getFullYear()} Referron</span>
+      <span class="mono spacer">Connection · Collaboration · Community</span>
+    </div>
+  </footer>`;
+}
+function emptyBlock(big,msg){
+  return `<div class="empty"><div class="big">${esc(big)}</div><p>${esc(msg)}</p></div>`;
+}
+function essayRow(it){
+  const s=slugOf(it), t=it.payload?.topics||[], img=it.payload?.featured_image;
+  return `<a class="essay${img?' has-img':''}" href="/essays/${encodeURIComponent(s)}" data-nav>
+    <div>
+      <h3>${esc(titleOf(it))}</h3>
+      <p>${esc(it.payload?.summary||it.payload?.headline||'')}</p>
+      <div class="tags">
+        ${t.slice(0,3).map(x=>`<span class="tag">${esc(x)}</span>`).join('')}
+        ${it.author?`<span class="byline">${esc(it.author)}</span>`:''}
+      </div>
+    </div>
+    ${img?`<img class="essay-thumb" src="${esc(img)}" alt="" loading="lazy">`:''}
+  </a>`;
+}
+function fmtPrice(a,c){
+  const cur=String(c).toLowerCase();
+  return (cur.endsWith('-cents')||cur==='usd') ? '$'+(a/100).toFixed(2) : a+' '+c;
+}
+function contributorInvite(){
+  if(hasRole('contributor')) return `<section class="sec contributor-invite">
+    <h2>Contributor access is active</h2>
+    <p>Your guest pieces will carry your own byline and go through editorial review. Writing tools are coming to Studio.</p>
+  </section>`;
+  if(hasRole('creator')||hasRole('strategist')) return '';
+  return `<section class="sec contributor-invite">
+    <h2>Have a perspective to share?</h2>
+    <p>Become a Contributor to write guest pieces under your own name, with editorial review before publication.</p>
+    ${S.session?.authenticated && seated()
+      ? `<button class="btn fill" onclick="becomeContributor()">Become a Contributor</button>`
+      : `<a class="btn fill" href="/join" data-nav>${S.session?.authenticated?'Pick a handle to contribute':'Join to contribute'}</a>`}
+    ${S.contributorError?`<p role="alert">${esc(S.contributorError)}</p>`:''}
+  </section>`;
+}
+
+function viewHome(){
+  const stores=storefronts();
+  return `<section class="hero referron-hero">
+    <div class="hero-copy"><p class="hero-kicker">Your network. More opportunity.</p>
+    <h1 class="display">Good things grow through people.</h1>
+    <p class="lede">Discover products and services. Share what you believe in. Turn trusted recommendations into opportunities for everyone.</p>
+    <div class="cta"><a class="btn fill" href="/market" data-nav>Explore the market</a><a class="btn" href="/coselling" data-nav>Refer & earn</a></div>
+    <p class="hero-note">A new way to connect, refer, and grow with Referron.</p></div>
+    <div class="connection-map" aria-label="Discover, share, and grow together">
+      <div class="network-line line-a"></div><div class="network-line line-b"></div><div class="network-line line-c"></div>
+      <div class="network-node node-discover"><span class="node-icon">⌕</span><strong>Discover</strong><span>Something worth sharing</span></div>
+      <div class="network-center"><img src="/assets/brand/favicon.png" alt="Referron" width="70" height="70"><span>Built on connection</span></div>
+      <div class="network-node node-share"><span class="node-icon">↗</span><strong>Refer</strong><span>Make a useful connection</span></div>
+      <div class="network-node node-grow"><span class="node-icon">＋</span><strong>Grow together</strong><span>Share in the opportunity</span></div>
+    </div>
+  </section>
+  <section class="sec market-intro"><div class="sec-head"><h2>Meet your next great find</h2><a href="/market" data-nav>Browse the market</a></div>
+    <p class="section-intro">Products and services from people with something useful to offer.</p>
+    ${stores.length?`<div class="stores">${stores.map(sellerCard).join('')}</div>`:`<div class="market-welcome"><div><h3>The first storefronts are on their way</h3><p>Our market is getting started. Have a product or service to share? Become one of our first sellers.</p></div><a class="btn" href="/seller-agreement" data-nav>Become a seller</a></div>`}
+  </section>
+  <section class="sec"><div class="sec-head"><h2>A little connection goes a long way</h2></div>
+    <div class="referron-steps"><article><span class="step-number">1</span><h3>Find something useful</h3><p>Explore offerings and get to know the people behind them.</p></article><article><span class="step-number">2</span><h3>Share it with your network</h3><p>Use your personal sharing link to recommend something that can help.</p></article><article><span class="step-number">3</span><h3>Share in the value</h3><p>Eligible purchases can reward the people whose recommendations contributed.</p></article></div>
+  </section>
+  <section class="referron-invite"><h2>Your connections can open doors.</h2><p>Start with something useful. Help someone find it.</p><a class="btn fill" href="/join" data-nav>Join Referron Market</a><a class="text-link" href="https://www.referron.com/">Discover Referron</a></section>`;
+}
+
+function footCTA(){
+  const signed=!!S.session?.authenticated;
+  const earningLink=signed && seated() && !!myRefToken();
+  const accountAction=!signed
+    ? '<a class="btn fill" href="/join" data-nav>Join Referron Market</a>'
+    : !seated()
+      ? `<a class="btn fill" href="/join" data-nav>${seatChoiceRequired()?'Choose your account':'Choose your handle'}</a>`
+      : !earningLink
+        ? '<a class="btn fill" href="/coselling" data-nav>Share-to-Earn</a>' : '';
+  return `<div class="foot-cta">
+    <span class="say">${earningLink?'Share it.':'Build with us.'}</span>
+    ${accountAction}
+    <button class="btn ${earningLink?'fill':''}" onclick="share()">${earningLink?'Copy your earning link':'Copy essay link'}</button>
+    ${earningLink?'<span class="mono" style="color:var(--dim)">Includes your sharing attribution</span>':''}
+  </div>`;
+}
+
+function pct(bps){return Number.isFinite(bps)?(bps/100).toLocaleString(undefined,{maximumFractionDigits:2})+'%':'—';}
+function cosellerActivation(){
+  if(!S.session?.authenticated){
+    return `<div class="coseller-activate"><h2>Start building influence</h2>
+      <p>Join Referron Market, choose your permanent handle, and activate a stable sharing link.</p>
+      ${signInUrl()?`<a class="btn fill" href="${signInUrl()}" onclick="rememberReturn('/coselling')">Join and become a Coseller</a>`
+        :`<span class="btn fill" style="opacity:.5">Sign in unavailable</span>`}</div>`;
+  }
+  if(!seated() && (seatChoiceRequired()||S.seatError)) return `<div class="coseller-activate"><h2>Choose a player seat</h2>
+    <p>You already have an Referron Market identity. Select it before activating Coselling.</p>
+    <a class="btn fill" href="/join" data-nav>Choose a seat</a></div>`;
+  if(!seated()) return `<div class="coseller-activate"><h2>Choose your public handle</h2>
+    <p>Your handle identifies your sharing links and cannot be changed later.</p>
+    <form class="cta" style="align-items:flex-start" onsubmit="claimHandle(event,true)">
+      <input id="handle" name="handle" autocomplete="off" autocapitalize="none" spellcheck="false"
+             placeholder="yourname" maxlength="32">
+      <button class="btn fill" type="submit">Claim handle and activate</button>
+    </form><p id="handle-err" class="mono form-error"></p></div>`;
+  if(!hasRole('coseller')||!S.coseller||S.coseller.status!=='active')
+    return `<div class="coseller-activate"><h2>Activate Coselling</h2>
+      <p>Use your existing <b>@${esc(S.session.selectedSeat.playerName)}</b> identity to receive a stable sharing link.</p>
+      ${S.cosellerError?`<p role="alert" class="market-error">${esc(S.cosellerError)}</p>`:''}
+      <button class="btn fill" onclick="activateCoseller()">Activate Coselling</button></div>`;
+  const p=S.coseller.policy||{}, opportunities=S.coseller.opportunities||[];
+  return `<section class="coseller-private" aria-labelledby="your-coselling">
+    <div class="preview-flag">Private Coseller view · Market preview</div>
+    <h2 id="your-coselling">Your Coseller program</h2>
+    <p>Active as <b>@${esc(S.coseller['player-name'])}</b>. Attribution can be recorded now; commissions begin only when eligible checkout launches.</p>
+    <div class="share-box"><div><span class="mono">YOUR SHARING LINK</span><code>${esc(S.coseller['share-url']||'')}</code></div>
+      <button class="btn fill" onclick="copyCosellerLink('/')">Copy link</button></div>
+    <div class="coseller-actions"><button class="btn" onclick="copyCosellerLink('/manifesto')">Share the manifesto</button>
+      <a class="btn" href="/" data-nav>Find articles</a><a class="btn" href="/market" data-nav>Browse the market</a></div>
+    <h3>Private program terms</h3>
+    <p class="lede">Commission opportunities ${esc((S.coseller['commission-range']||{}).wording?.toLowerCase()||'vary by offer')}.</p>
+    <dl class="program-terms">
+      <div><dt>Influence window</dt><dd>${esc(p['window-days'])} days</dd></div>
+      <div><dt>Influence-chain share</dt><dd>${pct(p['pool-share-bps'])} of eligible commission</dd></div>
+      <div><dt>Network referral</dt><dd>${pct(p['referral-override-bps'])} per eligible level; no fixed depth cap</dd></div>
+      <div><dt>Seller-direct commission hold</dt><dd>${esc(p['seller-direct-payout-hold-days']||p['payout-hold-days'])} day${Number(p['seller-direct-payout-hold-days']||p['payout-hold-days'])===1?'':'s'} after fulfillment</dd></div>
+      <div><dt>Other order hold</dt><dd>${esc(p['payout-hold-days'])} days minimum</dd></div>
+      <div><dt>Withdrawal minimum</dt><dd>No Referron Market minimum planned</dd></div>
+      <div><dt>Subscriptions</dt><dd>Chain locked when the subscription starts</dd></div>
+    </dl>
+    <h3>Current opportunities</h3>
+    <div class="opportunity-list">${opportunities.length?opportunities.map(o=>`<a class="opportunity" href="/market/${encodeURIComponent(o.seller)}/products/${encodeURIComponent(o['capability-id'])}" data-nav>
+      <span><b>${esc(o.title)}</b><small>${esc(sellerName(o.seller))}</small></span><strong>${pct(o['commission-bps'])}<small>seller pool</small></strong></a>`).join(''):
+      `<p>No commission opportunities are published yet.</p>`}</div>
+  </section>`;
+}
+function viewEarnings(){
+  if(!S.session?.authenticated||!seated()) return `<section class="hero"><h1 class="display">Your earnings</h1><p class="lede">Sign in and choose your handle to see your earnings and payout account.</p><a class="btn fill" href="/join" data-nav>Sign in</a></section>`;
+  return `<section class="hero"><h1 class="display">Your earnings</h1><p class="lede">Track your balance and withdraw available earnings.</p></section><section class="sec" id="earnings-data" aria-live="polite"><p>Loading your balance…</p></section>`;
+}
+let earningsRequest=0;
+async function earningsFetch(path,body){
+  const r=await fetch(path,{method:body?'POST':'GET',credentials:'include',headers:{...auth(),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+  const result=await r.json();if(!r.ok) throw new Error(result.error?.message||result.error?.code||'Earnings are unavailable. Please try again.');return result;
+}
+async function loadEarnings(){
+  const host=document.getElementById('earnings-data');if(!host||!seated())return;
+  const request=++earningsRequest;
+  try{
+    const [walletResult,connect,history]=await Promise.all([earningsFetch('/wallet'),earningsFetch('/api/connect/status'),earningsFetch('/api/wallet/withdrawals')]);
+    if(request!==earningsRequest||!host.isConnected)return;
+    const wallet=walletResult.wallet, money=n=>fmtPrice(n||0,'usd-cents'), records=history.withdrawals||[];
+    host.innerHTML=`<div class="referron-steps"><article><h2>${money(wallet.balance)}</h2><p>Total balance</p></article><article><h2>${money(wallet.availableNow)}</h2><p>Available to withdraw</p></article><article><h2>${money((wallet.pending||[]).reduce((sum,p)=>sum+p.amount,0))}</h2><p>Pending availability</p></article></div>
+      <section class="sec"><h2>Payout account</h2><p>${connect.maskedExternalId?esc(connect.maskedExternalId)+' · ':''}${esc(connect.status||'Not connected')}</p>
+      ${!connect.connectEnabled?'<p>Withdrawals will open after payment setup is complete.</p>':connect.payoutsEnabled?`<form onsubmit="withdrawEarnings(event)"><label for="withdraw-amount">Amount in USD</label><input id="withdraw-amount" type="number" min="0.01" max="${(wallet.availableNow/100).toFixed(2)}" step="0.01" required><button class="btn fill" type="submit" ${wallet.availableNow>0?'':'disabled'}>Withdraw</button></form>`:'<button class="btn" onclick="onboardEarnings()">Set up payouts</button>'}</section>
+      <section class="sec"><h2>Withdrawal history</h2>${records.length?records.map(w=>`<p>${money(w.amount)} · ${esc(w.status)} <small>${esc(w.id)}</small></p>`).join(''):'<p>No withdrawals yet.</p>'}</section><p id="earnings-message" role="status"></p>`;
+  }catch(e){if(host.isConnected)host.innerHTML=`<p role="alert">${esc(e.message)}</p><button class="btn" onclick="loadEarnings()">Try again</button>`;}
+}
+async function onboardEarnings(){
+  try{const result=await earningsFetch('/api/connect/onboard',{'return-path':'/earnings'});const url=new URL(result.url);if(url.protocol!=='https:'||!url.hostname.endsWith('.stripe.com'))throw new Error('Invalid payout setup link');location.assign(url.href);}catch(e){toast(e.message);}
+}
+async function withdrawEarnings(event){
+  event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;
+  const amount=Math.round(Number(document.getElementById('withdraw-amount').value)*100);
+  const key='referron.withdrawal.'+S.session.selectedSeat.playerName;let attempt;
+  try{attempt=JSON.parse(localStorage.getItem(key)||'null');if(!attempt||attempt.amount!==amount){attempt={amount,withdrawalId:crypto.randomUUID()};localStorage.setItem(key,JSON.stringify(attempt));}
+    const result=await earningsFetch('/api/wallet/withdraw',attempt);
+    if(['paid','settling','rejected'].includes(result.status))localStorage.removeItem(key);
+    toast(result.status==='paid'?'Withdrawal sent':'Withdrawal '+result.status);await loadEarnings();
+  }catch(e){toast(e.message+' Retry the same amount to resume this withdrawal.');button.disabled=false;}
+}
+
+function viewCoselling(){
+  return `<section class="coseller-hero">
+    <span class="eyebrow">The Coseller Program</span>
+    <h1 class="display">Share what matters.<br>Earn when influence creates value.</h1>
+    <p class="coseller-tagline"><b>#Coselling</b> is <b>#NoSelling</b>.</p>
+    <p class="lede">Share an article, video, manifesto, profile, store, product, or any other Referron Market page. If your engagement contributes to a later eligible purchase, you can participate in the value created—even when what you shared contained no product or sales pitch.</p>
+  </section>
+  <section class="sec coseller-section"><div class="sec-head"><h2>Influence, not affiliate selling</h2></div>
+    <p class="section-intro">A Coseller link records useful engagement across the whole market. You do not have to hard-sell a product, predict what someone will buy, or attach a commission intent to the page you share.</p>
+    <div class="principle-grid">
+      <article><span>01</span><h3>Share anything useful</h3><p>Essays, videos, people, ideas, stores and products can all begin a chain of influence.</p></article>
+      <article><span>02</span><h3>Influence can travel</h3><p>The person may later choose any eligible offer. Attribution is not limited to the page or product originally shared.</p></article>
+      <article><span>03</span><h3>Value follows contribution</h3><p>When an eligible purchase settles, qualifying contributors can participate in its commission pool.</p></article>
+    </div>
+  </section>
+  <section class="sec coseller-section"><div class="sec-head"><h2>Two ways influence compounds</h2></div>
+    <div class="earning-grid"><article><span class="eyebrow">Active influence</span><h3>Share what you genuinely find useful</h3><p>A qualifying visit can connect your influence to that person's later eligible purchases across the market. A click alone never guarantees earnings.</p></article>
+    <article><span class="eyebrow">Network influence</span><h3>Bring another contributor into the network</h3><p>If someone you introduce later becomes a Coseller, the recruiting relationship can participate when their influence creates eligible earnings.</p></article></div>
+  </section>
+  <section class="sec coseller-section"><div class="sec-head"><h2>How a share becomes value</h2></div>
+    <ol class="coseller-steps"><li><b>Activate.</b> Choose one permanent identity and receive a stable sharing link.</li>
+      <li><b>Share.</b> Add your identity to any Referron Market page—not only product pages.</li>
+      <li><b>Contribute.</b> Qualifying engagement places you in that person's chain of influence for the configured window.</li>
+      <li><b>Participate.</b> If that person later makes any eligible purchase, the qualifying chain can share the available pool.</li>
+      <li><b>Settle.</b> Earnings become available only after payment, fulfillment, and applicable refund or dispute holds clear.</li></ol>
+    <p class="fine-print"><b>“All sales” means eligible purchases made by people in your qualifying chain—not every sale across the marketplace.</b> Distinct qualifying contributors may share a pool. Subscription chains are fixed when the subscription begins and may participate in eligible renewals.</p>
+  </section>
+  <section class="sec coseller-section"><div class="sec-head"><h2>Useful beats promotional</h2></div>
+    <div class="values-list"><p><b>Do:</b> share work you believe is useful, explain why it matters, and disclose that a member may receive a reward.</p>
+      <p><b>Don't:</b> spam, impersonate, manufacture engagement, promise earnings, or mislead someone about a product.</p>
+      <p><b>Preview:</b> attribution can be recorded now, but no commission is earned until eligible checkout is enabled. Refunds, reversals, disputes and ineligible purchases do not create withdrawable earnings.</p></div>
+  </section>
+  ${cosellerActivation()}`;
+}
+
+function viewEssays(){
+  const f=feed();
+  return `<section class="sec essays-page">
+    <div class="sec-head"><h1>Essays</h1><span class="count mono">${f.length} published</span></div>
+    <p class="lede">Ideas for building useful connections.</p>
+    ${f.length?`<div class="essays-list">${f.map(essayRow).join('')}</div>`
+      :emptyBlock('No essays yet','The first perspectives are being written.')}
+  </section>
+  ${contributorInvite()}`;
+}
+
+function viewManifesto(){
+  const b=bible(), m=findPost('manifesto');
+  return `<article class="reader">
+    <h1>${esc(m?.payload?.title||b.name||'Referron Market')}</h1>
+    <p class="standfirst" style="border-left:2px solid var(--accent);padding-left:18px">${esc(b.mission||'')}</p>
+    ${m?.payload?.featured_image
+      ? `<img class="reader-hero" src="${esc(m.payload.featured_image)}" alt="" loading="lazy">`
+      : ''}
+    <div class="body">${m?(m.payload?.body||`<p>${esc(m.payload?.summary||'')}</p>`)
+      :`<p>The manifesto has not been published yet. This page renders it from the feed the moment an editor approves it — the statement above is the seed, the essay is the argument.</p>
+        <p class="mono" style="color:var(--dim)">Awaiting /essays/manifesto</p>`}</div>
+    ${footCTA()}
+  </article>`;
+}
+function viewEssay(slug){
+  const it=findPost(slug);
+  if(!it) return `<div class="reader">${emptyBlock('Not found','No essay lives at this address yet.')}
+    <p style="text-align:center;margin-top:26px"><a class="btn" href="/" data-nav>Back</a></p></div>`;
+  const t=it.payload?.topics||[];
+  return `<article class="reader">
+    <div class="tags" style="margin-bottom:18px">
+      ${t.map(x=>`<a class="tag" href="/topics/${encodeURIComponent(x)}" data-nav>${esc(x)}</a>`).join('')}
+    </div>
+    ${it.payload?.featured_image
+      ? `<img class="reader-hero" src="${esc(it.payload.featured_image)}" alt="" loading="lazy">`
+      : ''}
+    <h1>${esc(titleOf(it))}</h1>
+    ${it.author?`<p class="byline">By <a href="/@${encodeURIComponent(it.author)}" data-nav>@${esc(it.author)}</a></p>`:''}
+    ${it.payload?.headline?`<p class="standfirst">${esc(it.payload.headline)}</p>`:''}
+    <div class="body">${it.payload?.body||`<p>${esc(it.payload?.summary||'')}</p>`}</div>
+    ${footCTA()}
+  </article>`;
+}
+function viewTopic(topic){
+  const f=feed().filter(it=>(it.payload?.topics||[]).includes(topic));
+  const c=caps().filter(x=>(x.metadata?.topics||[]).includes(topic));
+  return `<section class="sec" style="margin-top:44px">
+    <div class="sec-head"><h2>${esc(topic)}</h2>
+      <span class="count mono">${f.length} essays · ${c.length} listed</span></div>
+    ${f.length?f.map(essayRow).join(''):emptyBlock('Nothing here yet','No essay carries this topic — the vocabulary exists before the writing does.')}
+    ${c.length?`<div class="goods">${c.map(goodCard).join('')}</div>`:''}
+  </section>`;
+}
+function viewPerson(name){
+  const written=feed().filter(it=>it.author===name);
+  const selling=caps().filter(c=>c.seller===name);
+  return `<section class="sec" style="margin-top:44px">
+    <div class="sec-head"><h2>@${esc(name)}</h2></div>
+    <p style="color:var(--dim);max-width:52ch;margin-top:18px">A member of Referron Market. Discover their published content and offerings.</p>
+    ${written.length?`<h3 class="mono" style="margin-top:36px;color:var(--dim)">Essays</h3>${written.map(essayRow).join('')}`:''}
+    ${selling.length?`<h3 class="mono" style="margin-top:36px;color:var(--dim)">Listings</h3><div class="goods">${selling.map(goodCard).join('')}</div>`:''}
+    ${(!written.length&&!selling.length)?emptyBlock('Nothing yet','No essays, no listings — for now.'):''}
+  </section>`;
+}
+/* Marketplace policies adapted for the Referron application. */
+const LEGAL_ENTITY='Referron', LEGAL_EFFECTIVE='2 November 2026';
+
+function legalPage(title, sections){
+  return `<article class="reader">
+    <h1>${esc(title)}</h1>
+    <p class="standfirst">${esc(LEGAL_ENTITY)} · Effective ${esc(LEGAL_EFFECTIVE)}</p>
+    <div class="body">${sections}</div>
+  </article>`;
+}
+
+function viewPrivacy(){
+  return legalPage('Privacy Policy', `
+    <p>Referron Market is operated by ${esc(LEGAL_ENTITY)}. This policy explains what we
+      collect, why, and what remains yours.</p>
+
+    <h2>What we collect</h2>
+    <p>When you sign in we receive your name, email address and account identifier from our
+      authentication provider. We do not receive or store your password.</p>
+    <p>You choose a public handle when you join. That handle is your byline on everything you
+      publish and the name your share links carry. It is <b>permanent</b>: it is the key our
+      systems use to attribute your writing, your sales and your earnings, so it cannot be
+      changed after it is claimed.</p>
+    <p>We store what you publish, what you list for sale, your orders, and the referral
+      relationships that determine who is paid for a sale.</p>
+
+    <h2>Readers who have not signed in</h2>
+    <p>If you arrive through someone's share link we set a cookie holding an anonymous visitor
+      identifier so that person can be credited if you later buy something. It contains no
+      personal information. If you sign in, those visits are re-keyed to your handle; if you
+      never do, the identifier expires and nothing is ever attached to a person.</p>
+
+    <h2>How we use it</h2>
+    <p>To authenticate you, publish what you ask us to publish, process payments and payouts,
+      attribute referrals, prevent abuse, and support you.</p>
+
+    <h2>Service providers</h2>
+    <p>We rely on third parties for authentication, payment processing and payouts, hosting and
+      diagnostics. Payment details are handled by our payment processor and are never stored by
+      us.</p>
+
+    <h2>What is public</h2>
+    <p>Your handle, the essays you publish, what you list for sale, and your comments are public
+      by design. Your email address, your balances and your payout details are not.</p>
+
+    <h2>Retention</h2>
+    <p>We keep information while your account is active and afterwards where we must — to settle
+      payments, meet legal and tax obligations, resolve disputes and enforce our terms.
+      Published essays and completed transactions form a permanent record: they are what other
+      people were paid on, so they are not removed on request.</p>
+
+    <h2>Your choices</h2>
+    <p>You may request a copy of your information or ask us to close your account. Ask through
+      the support channel in the product.</p>
+
+    <h2>Security</h2>
+    <p>We use reasonable safeguards. No service can promise complete security, and we will not
+      claim otherwise.</p>
+
+    <h2>Changes</h2>
+    <p>We will post any changes here with a new effective date.</p>`);
+}
+
+function viewTerms(){
+  return legalPage('Terms of Service', `
+    <p>These terms govern your use of Referron Market, operated by ${esc(LEGAL_ENTITY)}. By using
+      the service you agree to them.</p>
+
+    <h2>Your account</h2>
+    <p>You are responsible for your account and for what is published under your handle. Do not
+      abuse, disrupt, reverse engineer or attempt unauthorised access to the service.</p>
+
+    <h2>Your handle</h2>
+    <p>The handle you choose is permanent. It is the identifier our systems use for attribution,
+      settlement and payouts, so it cannot be renamed once claimed. Choose it accordingly.</p>
+
+    <h2>What you publish</h2>
+    <p>You keep ownership of what you write. You grant us the right to host and display it here
+      and in feeds and share links that point here. You are responsible for having the rights to
+      what you publish.</p>
+    <p>Publishing is deliberate and durable. An editor may correct a published essay, but the
+      author and the time of publication are part of the record and are not rewritten.</p>
+
+    <h2>Selling</h2>
+    <p>Sellers are responsible for the accuracy of their listings, for delivering what they sell,
+      and for their own tax obligations. Payments are handled by our payment processor. Refunds
+      and returns follow the terms shown on the listing.</p>
+
+    <h2>Referrals and earnings</h2>
+    <p>A share link may point to any page, not only a product. Qualifying engagement can become
+      part of a buyer's chain of influence and participate in later eligible purchases across the
+      market. For subscriptions, the chain is fixed when the subscription starts and may
+      participate in eligible renewals.</p>
+    <p>Commission opportunities and their terms are available privately to activated Cosellers
+      before they share. Offer-specific terms appear in the Coseller view. Buyers see the price
+      and purchase terms, not the commission rate. During the market preview, attribution may
+      be recorded but no commission is earned until eligible checkout is enabled.</p>
+    <p>Once payouts launch, settled balances remain subject to the published hold, refund and
+      dispute rules before they become withdrawable.</p>
+
+    <h2>Availability</h2>
+    <p>The service depends on third-party infrastructure. We may change or discontinue features
+      and do not guarantee uninterrupted operation.</p>
+
+    <h2>Suspension</h2>
+    <p>We may suspend or close an account that breaks these terms. Earnings already settled
+      remain payable.</p>
+
+    <h2>Liability</h2>
+    <p>To the extent permitted by law, ${esc(LEGAL_ENTITY)} is not liable for indirect or
+      consequential loss, including lost profits, data or business opportunity.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about these terms go through the support channel in the product.</p>`);
+}
+
+function sellerAgreementDocument(html){
+  const template=document.createElement('template');
+  template.innerHTML=html;
+  const sections=[...template.content.querySelectorAll('.seller-terms h2')].map((heading,index)=>{
+    const id='seller-section-'+(index+1);
+    heading.id=id;
+    return {id,title:heading.textContent};
+  });
+  return `<div class="seller-agreement-layout">
+    <details class="seller-agreement-toc" ${matchMedia('(min-width: 821px)').matches?'open':''}>
+      <summary class="seller-toc-label">In this agreement</summary>
+      <nav aria-label="Seller Agreement sections"><ol>${sections.map(section=>`<li><a href="#${section.id}">${esc(section.title)}</a></li>`).join('')}</ol></nav>
+    </details>
+    <div class="seller-agreement-content">${template.innerHTML}</div>
+  </div>`;
+}
+function viewSellerAgreement(){
+  const agreement=S.sellerAgreement;
+  const status=S.sellerAcceptance;
+  const details=status?`<p class="seller-agreement-status" role="status">Accepted ${esc(new Date(status['accepted-at']).toLocaleString())} by ${esc(status['signer-name'])} for ${esc(status['seller-legal-name'])}. Status: ${esc(status.status==='pending-operator-activation'?'Pending Referron Market review':status.status)}. Acceptance ID: <code>${esc(status.id)}</code>.</p>`:'';
+  const next=!S.session?.authenticated
+    ? `<p>Sign in to accept this agreement and apply to become a Seller.</p>${signInUrl()?`<a class="btn fill" href="${signInUrl()}" onclick="rememberReturn('/seller-agreement')">Sign in to apply</a>`:'<p>Sign in is temporarily unavailable.</p>'}`
+    : !seated()
+      ? `<p>${seatChoiceRequired()?'Choose a player seat':'Choose your Referron Market handle'} before accepting.</p><a class="btn fill" href="/join" data-nav onclick="rememberReturn('/seller-agreement')">${seatChoiceRequired()?'Choose a seat':'Choose a handle'}</a>`
+      : status&&status.version===agreement?.version&&status.sha256===agreement?.sha256
+        ? details
+        : `<p>Complete the details below to apply. Referron Market will review your application before activating your Seller account. Your commercial terms will be presented separately before paid checkout is enabled.</p>
+          <form class="seller-accept-form" onsubmit="acceptSellerAgreement(event)">
+            <label>Seller type<select name="seller-type" required onchange="this.form.elements['signer-title'].required=this.value==='business'"><option value="business">Business</option><option value="individual">Individual</option></select></label>
+            <label>Seller legal name<input name="seller-legal-name" maxlength="200" autocomplete="organization" required></label>
+            <label>Your full legal name<input name="signer-name" maxlength="200" autocomplete="name" required></label>
+            <label>Your title or authority (for a business)<input name="signer-title" maxlength="120" placeholder="Owner, CEO, authorized representative" required></label>
+            <label>Notice email<input name="notice-email" type="email" maxlength="254" autocomplete="email" required></label>
+            <label>Notice mailing address<textarea name="notice-address" maxlength="500" rows="3" autocomplete="street-address" required></textarea></label>
+            <label class="seller-accept-check"><input type="checkbox" name="accepted" required> I am the Seller or am authorized to bind the named Seller. I have read and agree to the Seller Agreement, version ${esc(agreement?.version||'')}, and intend to sign it electronically.</label>
+            <button class="btn fill" type="submit">I Accept</button>
+            <p class="seller-accept-error" role="alert">${esc(S.sellerAgreementError||'')}</p>
+          </form>`;
+  return `<section class="seller-agreement-page">
+    ${agreement?`<aside class="seller-accept-panel" aria-label="Seller application"><p class="eyebrow">Step 1</p><h2>Become a Seller</h2><p>Apply to offer your products and services on the Referron Market market. This application includes acceptance of the Seller Agreement below. <a href="#seller-agreement-document">Read the agreement before accepting.</a></p>${next}</aside>`:''}
+    ${sellerCommercialStep()}
+    <div id="seller-agreement-document">${agreement?sellerAgreementDocument(agreement.html):`<div class="reader"><h1>Seller Agreement</h1><p>${esc(S.sellerAgreementError||'Loading agreement…')}</p></div>`}</div>
+  </section>`;
+}
+function viewOperatorSellers(){
+  if(!S.session?.authenticated||!hasRole('operator')) return `<section class="sec operator-page"><h1>Seller reviews</h1><p>An Referron Market operator seat is required.</p></section>`;
+  const applications=S.operatorApplications;
+  const latestByPlayer=new Set();
+  return `<section class="sec operator-page"><p class="eyebrow">Referron Market operator</p><h1>Seller reviews</h1>
+    <p>Review agreement acceptance and signing authority. Approval records your decision; complete the commercial schedule, account setup, and integration checks before marking a seller activated.</p>
+    ${S.operatorError?`<p role="alert" class="market-error">${esc(S.operatorError)}</p>`:''}
+    ${applications===null?'<p>Loading applications…</p>':applications.length===0?'<p>No seller applications yet.</p>':
+      applications.map(a=>{const latest=!latestByPlayer.has(a['player-name']);latestByPlayer.add(a['player-name']);return `<article class="operator-card"><div class="operator-card-head"><h2>${esc(a['seller-legal-name'])}</h2><span class="mono">${esc(latest?a.status:'superseded')}</span></div>
+        <p><b>Applicant:</b> @${esc(a['player-name'])} · <b>Signer:</b> ${esc(a['signer-name'])}${a['signer-title']?`, ${esc(a['signer-title'])}`:''}</p>
+        <p><b>Type:</b> ${esc(a['seller-type'])} · <b>Accepted:</b> ${esc(new Date(a['accepted-at']).toLocaleString())} · <b>Agreement:</b> v${esc(a.version)}</p>
+        <p><b>Notice:</b> <a href="mailto:${esc(a['notice-email'])}">${esc(a['notice-email'])}</a><br>${esc(a['notice-address']).replaceAll('\n','<br>')}</p>
+        <p class="mono">Acceptance ${esc(a.id)} · SHA-256 ${esc(a.sha256)}</p>
+        ${operatorCommercial(a,latest)}
+        ${(a.reviews||[]).length?`<h3>Decision history</h3><ol>${a.reviews.map(x=>`<li>${esc(x.decision)} by @${esc(x.operator)} on ${esc(new Date(x.at).toLocaleString())}${x.note?`: ${esc(x.note)}`:''}</li>`).join('')}</ol>`:''}
+        ${latest&&(a.status==='pending-operator-activation'||a.status==='approved')?`<form class="operator-review-form" onsubmit="reviewSeller(event)">
+          <input type="hidden" name="acceptance-id" value="${esc(a.id)}"><label>Review note<textarea name="note" rows="2" maxlength="1000" placeholder="Reason or next step"></textarea></label>
+          ${a.status==='pending-operator-activation'?`<button class="btn fill" name="decision" value="approved">Approve for activation</button><button class="btn" name="decision" value="rejected">Reject</button>`:
+            `${a.commercial?.acceptance&&a.commercial?.schedule?.sha256===a.commercial.acceptance.sha256?`<label class="seller-accept-check"><input type="checkbox" name="configuration-confirmed" required> I verified payment and integration readiness and that the configured commission and payment route match the accepted schedule.</label><button class="btn fill" name="decision" value="activated">Mark activated</button>`:'<p>Activation requires acceptance of the latest published Commercial Schedule.</p><button class="btn fill" name="decision" value="activated" disabled>Mark activated</button>'}`}
+        </form>`:''}
+      </article>`}).join('')}
+  </section>`;
+}
+async function reviewSeller(ev){
+  ev.preventDefault();
+  const form=ev.currentTarget, button=ev.submitter;
+  if(!button||!form.reportValidity()) return;
+  button.disabled=true;
+  try{
+    const data=Object.fromEntries(new FormData(form));
+    data.decision=button.value;
+    if(data.decision==='activated') data['configuration-confirmed']=form.elements['configuration-confirmed']?.checked===true;
+    const r=await fetch('/api/operator/sellers/review',{method:'POST',credentials:'include',headers:{...auth(),'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const body=await r.json();
+    if(!r.ok) throw new Error(body.error?.message||body.error?.code||'Review failed.');
+    await loadOperatorApplications(); render(); toast('Seller review saved');
+  }catch(e){S.operatorError=e.message;render();}
+}
+async function acceptSellerAgreement(ev){
+  ev.preventDefault();
+  const form=ev.currentTarget, button=form.querySelector('button[type="submit"]');
+  if(!form.reportValidity()||!S.sellerAgreement) return;
+  const data=Object.fromEntries(new FormData(form));
+  data.accepted=true;
+  data.version=S.sellerAgreement.version;
+  data.sha256=S.sellerAgreement.sha256;
+  button.disabled=true;
+  S.sellerAgreementError=null;
+  try{
+    const r=await fetch('/api/seller/agreement/accept',{method:'POST',credentials:'include',headers:Object.assign({'Content-Type':'application/json'},auth()),body:JSON.stringify(data)});
+    const body=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(body.error?.message||'Could not record your acceptance. Please try again.');
+    S.sellerAcceptance=body.acceptance;
+    render();
+  }catch(e){S.sellerAgreementError=e.message;button.disabled=false;form.querySelector('.seller-accept-error').textContent=e.message;}
+}
+
+function viewJoin(){
+  /* Reachable directly by URL, and from a stale tab rendered before sign-in.
+     Showing "Sign in" to someone already signed in is how you get a person
+     clicking a button that appears to do nothing. */
+  if(S.session?.authenticated){
+    const me=S.session?.selectedSeat?.playerName;
+    /* Signed in with no seat yet. This is where the handle gets chosen — the
+       only moment it CAN be, since MoM has no rename and the name becomes the
+       byline on everything they publish. */
+    if(!me && (seatChoiceRequired()||S.seatError)) return `<section class="hero" style="padding-top:64px">
+      <h1 class="display">Choose a player seat</h1>
+      <p class="lede">Select the identity you want to use on Referron Market.</p>
+      ${S.seats.length
+        ? `<div class="cta">${S.seats.map(seat=>`<button class="btn" data-choose-seat="${esc(seat.playerName)}">@${esc(seat.playerName)}</button>`).join('')}</div>`
+        : `<p role="alert">We could not load your seats right now. ${esc(S.seatError||'Please try again.')}</p><button class="btn" onclick="retrySeats()">Retry</button>`}
+    </section>`;
+    if(!me) return `<section class="hero" style="padding-top:64px">
+      <h1 class="display">Pick your handle</h1>
+      <p class="lede">This is your byline on everything you publish here, and the name
+        your share links carry. <b>It cannot be changed later.</b></p>
+      <form class="cta" style="align-items:flex-start" onsubmit="claimHandle(event)">
+        <input id="handle" name="handle" autocomplete="off" autocapitalize="none" spellcheck="false"
+               placeholder="yourname" maxlength="32"
+               style="font-family:var(--f-mono);font-size:1rem;padding:12px 14px;
+                      background:var(--raised);color:var(--ink);border:1px solid var(--rule);min-width:16ch">
+        <button class="btn fill" type="submit">Claim it</button>
+      </form>
+      <p id="handle-err" class="mono" style="margin-top:14px;color:var(--accent);min-height:1em"></p>
+      <p class="mono" style="margin-top:8px;color:var(--dim)">3–32 characters · lowercase letters, numbers, _ and -</p>
+    </section>`;
+    return `<section class="hero" style="padding-top:64px">
+      <h1 class="display">You are in</h1>
+      <p class="lede">Signed in as <b>@${esc(me)}</b>. Read, write and sell here —
+        claim <b>coseller</b> and every link you share carries your name.</p>
+      <div class="cta">
+        <a class="btn fill" href="/" data-nav>Go to the feed</a>
+        <a class="btn" href="/market" data-nav>Browse the market</a></div>
+    </section>`;
+  }
+  return `<section class="hero" style="padding-top:64px">
+    <h1 class="display">Build with us</h1>
+    <p class="lede">Members read, write and sell here. Claim <b>coseller</b> and every link you share
+      carries your name — and pays you when it converts.</p>
+    <div class="cta">${signInUrl()
+      ? `<a class="btn fill" href="${signInUrl()}">Sign in</a>`
+      : `<span class="btn fill" style="opacity:.5;cursor:not-allowed" title="Auth is not configured">Sign in unavailable</span>`}
+      <a class="btn" href="/manifesto" data-nav>Read first</a></div>
+  </section>`;
+}
+function viewStudio(){
+  if(!S.session?.authenticated)
+    return `<section class="sec" style="margin-top:44px">${emptyBlock('Studio','Join to write here.')}${contributorInvite()}</section>`;
+  if(seatToken && seatToken.expiresAt<=Date.now()) clearSeatToken();
+  return `<section class="sec" style="margin-top:44px">
+    <div class="sec-head"><h2>Studio</h2><span class="count mono">${feed().length} published</span></div>
+    <p style="color:var(--dim);max-width:58ch;margin-top:18px">The editorial pipeline runs on the attention protocol:
+      task → assign → claim → draft → review → published. The queue lands next; the protocol is already live.</p>
+    ${contributorInvite()}
+    <section class="connect-ai" aria-labelledby="connect-ai-title">
+      <h2 id="connect-ai-title">Connect your AI</h2>
+      <p>Use your Referron Market player seat with the MoM MCP server.</p>
+      ${seated()?`<p class="mono">Current seat: <strong>@${esc(S.session.selectedSeat.playerName)}</strong></p>
+        <button class="btn fill" onclick="generateSeatToken()" ${seatTokenBusy?'disabled':''}>
+          ${seatTokenBusy?'Generating…':seatToken?'Generate a new token':'Generate seat token'}</button>
+        ${seatToken?`<div class="seat-token-result">
+          <label for="seat-token-value">Your seat token</label>
+          <div class="seat-token-controls">
+            <input id="seat-token-value" type="${seatTokenVisible?'text':'password'}" value="${esc(seatToken.value)}" readonly autocomplete="off" spellcheck="false">
+            <button class="btn" onclick="copySeatToken()">Copy token</button>
+            <button class="btn" onclick="toggleSeatToken()" aria-label="${seatTokenVisible?'Hide':'Reveal'} token">${seatTokenVisible?'Hide':'Reveal'}</button>
+          </div>
+          <p class="mono">For @${esc(seatToken.playerName)} · Expires ${new Date(seatToken.expiresAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}. Generate another when it expires.</p>
+        </div>`:''}
+        ${seatTokenError?`<p role="alert" class="form-error">${esc(seatTokenError)}</p>`:''}`
+        :`<p>${seatChoiceRequired()?'Choose a player seat before generating a token.':'Pick your handle before generating a token.'}</p>
+          <a class="btn" href="/join" data-nav>${seatChoiceRequired()?'Choose a seat':'Pick a handle'}</a>`}
+      <div class="connect-ai-setup">
+        <h3>Set up your MCP client</h3>
+        <p>Server URL: <code>https://mcp.intergraph.ai/mcp</code></p>
+        <p>In a terminal, run this command, paste the copied token, then press Enter. Start your MCP client from that terminal:</p>
+        <pre><code>read -rs REFERRON_SEAT_TOKEN &amp;&amp; export REFERRON_SEAT_TOKEN</code></pre>
+        <p>When the token expires, generate and paste a new one, then restart or reconnect your client.</p>
+        <h4>Codex CLI / IDE</h4>
+        <p>Add this to <code>~/.codex/config.toml</code>:</p>
+        <pre><code>[mcp_servers.mom]
+url = "https://mcp.intergraph.ai/mcp"
+bearer_token_env_var = "REFERRON_SEAT_TOKEN"</code></pre>
+        <h4>Claude Code</h4>
+        <p>Add this to your project's <code>.mcp.json</code>:</p>
+        <pre><code>{
+  "mcpServers": {
+    "mom": {
+      "type": "http",
+      "url": "https://mcp.intergraph.ai/mcp",
+      "headers": { "Authorization": "Bearer &#36;{REFERRON_SEAT_TOKEN}" }
+    }
+  }
+}</code></pre>
+        <p class="mono">This token expires after one hour. Keep it private; anyone holding it can act as this seat until it expires.</p>
+      </div>
+    </section>
+  </section>`;
+}
+
+function render(){
+  const r=route();
+  if((S.loading||r.v==='guide') && $('#app')?.dataset.serverRendered==='true') return;
+  document.title=r.v==='coselling'
+    ? 'Become a referrer — Referron Market'
+    : r.v==='operator-sellers'
+      ? 'Seller reviews — Referron Market'
+    : r.v==='seller-agreement'
+      ? 'Seller Agreement — Referron Market'
+    : 'Referron Market — Connect. Refer. Grow.';
+  let inner;
+  if(S.loading) inner=`<div class="hero"><h1 class="display skel">&nbsp;</h1></div>`;
+  else if(S.error&&!S.state&&r.v!=='seller-agreement') inner=`<section class="sec" style="margin-top:44px">${emptyBlock('Unavailable',"Couldn't reach game state: "+S.error)}</section>`;
+  else if(r.v==='home') inner=viewHome();
+  else if(r.v==='essays') inner=viewEssays();
+  else if(r.v==='manifesto') inner=viewManifesto();
+  else if(r.v==='privacy') inner=viewPrivacy();
+  else if(r.v==='terms') inner=viewTerms();
+  else if(r.v==='seller-agreement') inner=viewSellerAgreement();
+  else if(r.v==='operator-sellers') inner=viewOperatorSellers();
+  else if(r.v==='operator-discoverability') inner=viewDiscoverability();
+  else if(r.v==='essay') inner=viewEssay(r.slug);
+  else if(r.v==='topic') inner=viewTopic(r.topic);
+  else if(r.v==='person') inner=viewPerson(r.name);
+  else if(r.v==='market') inner=marketView(r);
+  else if(r.v==='earnings') {inner=viewEarnings();queueMicrotask(loadEarnings);}
+  else if(r.v==='coselling') inner=viewCoselling();
+  else if(r.v==='join') inner=viewJoin();
+  else if(r.v==='studio') inner=viewStudio();
+  else inner=`<section class="sec" style="margin-top:44px">${emptyBlock('No such page','Addresses here are permanent once published — so this one never was.')}</section>`;
+  delete $('#app').dataset.serverRendered;
+  $('#app').innerHTML=chrome(inner);
+}
+
+/* ── capture the session token ───────────────────────────────────
+   The auth app finishes by redirecting to success_url with ?token=<jwt>
+   appended (see mom/auth-ui completeLogin -> buildRedirect), and the GM's
+   /auth/success bounces that query straight through to "/". auth() reads
+   localStorage['referron.token'] — but nothing ever WROTE it, so a full,
+   successful Clerk login landed home and the SPA still had no credential.
+   The page then showed Sign in again, which reads like the login failed
+   rather than like the token was dropped on the doorstep.
+
+   set_cookie is false in the config, so there is no cookie to fall back on:
+   this query param is the ONLY way the token reaches the browser.
+
+   Stripped from the URL afterwards so a JWT is not left sitting in history,
+   or in a link the reader copies out of the address bar. */
+function captureToken(){
+  const p=new URLSearchParams(location.search);
+  const t=p.get('token');
+  if(!t) return;
+  try{ localStorage.setItem('referron.token',t); }catch(e){}
+  p.delete('token'); p.delete('provider');
+  const q=p.toString();
+  history.replaceState({},'',location.pathname+(q?'?'+q:'')+location.hash);
+}
+
+(async function boot(){
+  captureToken();
+  stashRef(); render(); fireTouch();
+  await load(); resumeReturn(); await claimIfNeeded(); await loadCoseller(); await loadMarket();
+  if(route().v==='seller-agreement') await loadSellerAgreement();
+  if(route().v==='operator-sellers') await loadOperatorApplications();
+  if(route().v==='operator-discoverability') await loadDiscovery();
+  resumeMarketReturn();
+  render(); await ShareWidget.resume();
+  if(location.hash==='#commercial-terms') requestAnimationFrame(()=>document.getElementById('commercial-terms')?.scrollIntoView());
+})();
+</script>
+</body>
+</html>

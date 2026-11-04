@@ -1,0 +1,13 @@
+# Copy to .envrc and supply production values. Never commit credentials.
+export FLY_APP_NAME=your-referron-fly-app
+# Either FLY_API_TOKEN or FLY_ORG_DEPLOY_TOKEN is supported.
+export FLY_ORG_DEPLOY_TOKEN=replace-me
+export MOM_URL=https://your-existing-mom-service
+export AUTH_BASE_URL=https://your-existing-auth-service
+export APP_BASE_URL=https://referron.coselling.ai
+export GM_URL=https://referron.coselling.ai
+export GM_OWNER_ID=your-owner-uuid
+export MOM_GAME_TOKEN=your-game-scoped-registry-credential
+export MOM_GM_OUTBOUND_TOKEN=your-mom-to-gm-credential
+# Configure in MoM before deploying: game referron-market, owner above,
+# protocol/role spec from scripts/game-spec.clj, credential issued to this game.

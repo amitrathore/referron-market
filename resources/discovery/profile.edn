@@ -1,0 +1,7 @@
+{:name "Referron Market"
+ :summary "Discover products and services worth sharing. Make trusted recommendations, open new doors, and earn from the value you help create."
+ :origin "https://referron.coselling.ai"
+ :image "/assets/brand/social-card-v2.png"
+ :crawler-policy "public"
+ :agent-guidance "Discover supported actions with introspection/query-capabilities. Operate only with your owner's authorization."
+ :coseller-readiness {:market-status "preview" :earnings-enabled false}}

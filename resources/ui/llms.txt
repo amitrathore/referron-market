@@ -1,0 +1,5 @@
+# Referron Market
+
+Discover products and services, share useful recommendations, and grow through trusted connections.
+
+The runtime generates /llms.txt through the existing Discoverability protocol.
