@@ -6,7 +6,8 @@ references. Consume published gm-lib; do not locally install an override.
 
 Brand source: https://www.referron.com/ and DESIGN.md. Preserve official assets.
 Yvatar is the authorized browse-only first store, using a reviewed public catalog
-snapshot. Do not fabricate metrics or enable purchasing or seller integrations.
+snapshot. Do not fabricate metrics or enable purchasing, live payments, or
+production Shoptype. Shoptype runs in preview so operators can use app.shoptype.com.
 
 Checks: `lein test`, `npm run test:ui`, `docker build -t referron-market:local .`.
 Local stack: `./scripts/local.sh up`; guest-only preview: `npm run preview`.
@@ -25,5 +26,5 @@ integrations as part of platform-only deployment.
 - Verify: source `.envrc`, run `python3 scripts/smoke-production.py`, then
   `node scripts/check-production.cjs` for public browser checks.
 - DNS and TLS: Cloudflare CNAME routing and Fly certificate are configured.
-- Payments and seller integrations remain disabled. No user handle is claimed
+- Payments remain disabled; Shoptype is connected in preview only. No user handle is claimed
   by production verification.

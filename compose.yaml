@@ -84,6 +84,8 @@ services:
       MOM_GM_OUTBOUND_TOKEN: ${MOM_GM_OUTBOUND_TOKEN}
       MARKET_PAYMENT_PROVIDER: stub
       STRIPE_CONNECT_ENABLED: 'false'
+      # Local stays isolated from app.shoptype.com. To exercise the connection,
+      # set 'true' with SHOPTYPE_ENVIRONMENT: preview and a local SHOPTYPE_BASE_URL.
       SHOPTYPE_ENABLED: 'false'
     depends_on:
       mom: {condition: service_healthy}

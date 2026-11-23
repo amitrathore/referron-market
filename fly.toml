@@ -11,7 +11,12 @@ kill_timeout = '30s'
   PLAYER_GROUP_ID = 'referron-market-prod-gm'
   MARKET_PAYMENT_PROVIDER = 'stub'
   STRIPE_CONNECT_ENABLED = 'false'
-  SHOPTYPE_ENABLED = 'false'
+  # Shoptype runs in preview so operators can connect and manage the market
+  # from app.shoptype.com. Purchasing stays stubbed; production is a later step.
+  SHOPTYPE_ENABLED = 'true'
+  SHOPTYPE_ENVIRONMENT = 'preview'
+  SHOPTYPE_MARKET_ID = 'referron-market'
+  SHOPTYPE_BASE_URL = 'https://app.shoptype.com'
 [http_service]
   internal_port = 8888
   force_https = true

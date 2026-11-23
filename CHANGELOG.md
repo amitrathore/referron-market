@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 — 2026-11-23
+
+- Turn on Shoptype in preview so operators can connect and manage Referron from
+  app.shoptype.com; purchasing and live payments stay off.
+- Deploy forwards `SHOPTYPE_SERVICE_TOKEN` and refuses a live Stripe key while in preview.
+
 ## 0.1.1 — 2026-11-04
 
 - Add Insights using the Attention Protocol, with permanent redirects from essay URLs.

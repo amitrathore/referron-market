@@ -9,5 +9,7 @@ export GM_URL=https://referron.coselling.ai
 export GM_OWNER_ID=your-owner-uuid
 export MOM_GAME_TOKEN=your-game-scoped-registry-credential
 export MOM_GM_OUTBOUND_TOKEN=your-mom-to-gm-credential
+# Shared with app.shoptype.com's GM service connection form (32+ random chars).
+export SHOPTYPE_SERVICE_TOKEN=replace-me
 # Configure in MoM before deploying: game referron-market, owner above,
 # protocol/role spec from scripts/game-spec.clj, credential issued to this game.

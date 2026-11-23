@@ -13,10 +13,13 @@ done
 export APP_BASE_URL="${APP_BASE_URL:-https://referron.coselling.ai}"
 export GM_URL="${GM_URL:-$APP_BASE_URL}"
 if [[ "${GAME_NAME:-referron-market}" == *local* ]]; then echo 'Refusing a local game identity in production.' >&2; exit 2; fi
+# Shoptype runs in preview (fly.toml); gm-lib silently disables it beside a live key.
+if [[ "${STRIPE_SECRET_KEY:-}" == sk_live_* ]]; then echo 'Refusing a live Stripe key while Shoptype runs in preview.' >&2; exit 2; fi
+if [[ -z "${SHOPTYPE_SERVICE_TOKEN:-}" ]]; then echo 'Note: SHOPTYPE_SERVICE_TOKEN is unset; Shoptype seller adapters stay unavailable until it is configured.' >&2; fi
 # Whitelisted values only. Pipe directly to Fly; do not print secret values.
 python3 - <<'PY' | fly secrets import --stage --app "$FLY_APP_NAME"
 import os
-keys=['MOM_URL','AUTH_BASE_URL','GM_OWNER_ID','MOM_GAME_TOKEN','MOM_GM_OUTBOUND_TOKEN','APP_BASE_URL','GM_URL','CLERK_PUBLISHABLE_KEY']
+keys=['MOM_URL','AUTH_BASE_URL','GM_OWNER_ID','MOM_GAME_TOKEN','MOM_GM_OUTBOUND_TOKEN','APP_BASE_URL','GM_URL','CLERK_PUBLISHABLE_KEY','SHOPTYPE_SERVICE_TOKEN']
 for key in keys:
     value=os.environ.get(key)
     if value:

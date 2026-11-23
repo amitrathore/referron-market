@@ -189,9 +189,10 @@ game merely to work around a restart issue.
 
 ## Payments and first sellers
 
-Production and local default to `MARKET_PAYMENT_PROVIDER=stub`,
-`STRIPE_CONNECT_ENABLED=false`, and `SHOPTYPE_ENABLED=false`. Checkout presents
-an unavailable state. Bootstrap does not create real seller seats or durable inventory. The public read
+Production and local default to `MARKET_PAYMENT_PROVIDER=stub` and
+`STRIPE_CONNECT_ENABLED=false`. Checkout presents an unavailable state.
+Production runs Shoptype in `preview` (`SHOPTYPE_ENABLED=true`) so operators can
+manage sellers and integrations from app.shoptype.com; local keeps it off. Bootstrap does not create real seller seats or durable inventory. The public read
 model adds the browse-only Yvatar snapshot without inserting it into protocol state.
 
 Later activation requires the game's merchant onboarding, seller agreement and
@@ -200,6 +201,25 @@ webhooks, and payment/payout readiness. Use existing Seller Commerce or Shoptype
 contracts; adding Daemons must not require modifying Daemons in this milestone.
 Yvatar already has a reference seller integration; its credentials and seat
 must be specific to this game.
+
+### Connecting Shoptype (operators)
+
+Operators manage Referron's commerce from https://app.shoptype.com. One-time setup,
+done by the MoM owner of `referron-market`:
+
+1. Generate a credential (`openssl rand -base64 48`), add it to `.envrc` as
+   `SHOPTYPE_SERVICE_TOKEN`, and run `./scripts/deploy.sh`. Deploy refuses a live
+   Stripe key because gm-lib disables preview Shoptype beside one.
+2. Confirm `https://referron.coselling.ai/shoptype/v0.1/manifest` reports
+   `"environment": "preview"`, and an anonymous `POST /shoptype/v0.1/operations`
+   returns 401.
+3. Sign in to app.shoptype.com as the owner and connect the market with the origin
+   `https://referron.coselling.ai`. All four checks (manifest, anonymous denied,
+   GM identity, operator ownership) must pass.
+4. In that connection's GM service connection form, paste the same credential. This
+   enables the protected `shoptype` protocol for the game in MoM.
+
+Moving to `production` needs live payments, activated sellers and a separate review.
 
 Configure durable Market/Coseller policies through existing operations before
 activation. Values in the game specification are UI defaults, not proof of
